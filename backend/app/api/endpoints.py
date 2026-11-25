@@ -254,6 +254,7 @@ def get_orders(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     outlet: Optional[str] = None,
+    category: Optional[str] = None,
     order_type: Optional[str] = None,
     settlement: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -264,7 +265,7 @@ def get_orders(
 ):
     f = FilterParams(
         start_date=start_date, end_date=end_date, outlet=outlet,
-        order_type=order_type, settlement=settlement
+        category=category, order_type=order_type, settlement=settlement
     )
     return AnalyticsService.get_orders(f, page, limit, search, sort_by, sort_order)
 
@@ -282,13 +283,14 @@ def export_orders_csv(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     outlet: Optional[str] = None,
+    category: Optional[str] = None,
     order_type: Optional[str] = None,
     settlement: Optional[str] = None,
     search: Optional[str] = None
 ):
     f = FilterParams(
         start_date=start_date, end_date=end_date, outlet=outlet,
-        order_type=order_type, settlement=settlement
+        category=category, order_type=order_type, settlement=settlement
     )
     # Fetch first 1000 orders matching filter
     data = AnalyticsService.get_orders(f, page=1, limit=1000, search=search)

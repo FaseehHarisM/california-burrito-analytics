@@ -761,65 +761,6 @@ class AnalyticsService:
         conn = get_db_conn()
         cur = conn.cursor()
 
-        conditions = []
-        params = []
-        min_d, max_d = _get_date_bounds()
-
-        if filters.start_date and filters.start_date > min_d:
-            conditions.append("order_date >= ?")
-            params.append(filters.start_date)
-
-        if filters.end_date and filters.end_date < max_d:
-            conditions.append("order_date <= ?")
-            params.append(filters.end_date)
-
-        if filters.outlet:
-            outlets = [o.strip() for o in filters.outlet.split(",") if o.strip()]
-            if len(outlets) == 1:
-                conditions.append("outlet_name = ?")
-                params.append(outlets[0])
-            elif len(outlets) > 1:
-                placeholders = ",".join("?" for _ in outlets)
-                conditions.append(f"outlet_name IN ({placeholders})")
-                params.extend(outlets)
-
-        if filters.order_type:
-            types = [t.strip() for t in filters.order_type.split(",") if t.strip()]
-            if len(types) == 1:
-                conditions.append("order_type = ?")
-                params.append(types[0])
-            elif len(types) > 1:
-                placeholders = ",".join("?" for _ in types)
-                conditions.append(f"order_type IN ({placeholders})")
-                params.extend(types)
-
-        if filters.settlement:
-            settles = [s.strip() for s in filters.settlement.split(",") if s.strip()]
-            if len(settles) == 1:
-                conditions.append("settlement = ?")
-                params.append(settles[0])
-            elif len(settles) > 1:
-                placeholders = ",".join("?" for _ in settles)
-                conditions.append(f"settlement IN ({placeholders})")
-                params.extend(settles)
-
-        if search and search.strip():
-            q_str = search.strip()
-            if q_str.isdigit():
-                conditions.append("bill_no = ?")
-                params.append(int(q_str))
-            else:
-                conditions.append("(outlet_name LIKE ? OR bill_no IN (SELECT bill_no FROM orders WHERE item LIKE ?))")
-                params.extend([f"%{q_str}%", f"%{q_str}%"])
-
-        where_sql = " AND ".join(conditions) if conditions else "1=1"
-
-        cur.execute(f"SELECT COUNT(*) FROM bills WHERE {where_sql};", params)
-        total_orders = cur.fetchone()[0]
-
-        total_pages = max(1, (total_orders + limit - 1) // limit)
-        offset = (page - 1) * limit
-
         valid_sort_cols = {
             "bill_no": "bill_no",
             "order_datetime": "order_datetime",
@@ -829,17 +770,76 @@ class AnalyticsService:
         }
         order_col = valid_sort_cols.get(sort_by, "order_datetime")
         direction = "ASC" if sort_order.upper() == "ASC" else "DESC"
+        offset = (page - 1) * limit
 
-        query = f"""
-        SELECT
-            bill_no, order_datetime, order_date, outlet_name, brand,
-            order_type, settlement, line_items_count, total_quantity, total_revenue
-        FROM bills
-        WHERE {where_sql}
-        ORDER BY {order_col} {direction}
-        LIMIT ? OFFSET ?;
-        """
-        cur.execute(query, params + [limit, offset])
+        if not filters.category:
+            where_sql, params = build_filter_clauses(filters, allow_category=False)
+            conditions = [where_sql] if where_sql != "1=1" else []
+
+            if search and search.strip():
+                q_str = search.strip()
+                if q_str.isdigit():
+                    conditions.append("bill_no = ?")
+                    params.append(int(q_str))
+                else:
+                    conditions.append("(outlet_name LIKE ? OR bill_no IN (SELECT bill_no FROM orders WHERE item LIKE ?))")
+                    params.extend([f"%{q_str}%", f"%{q_str}%"])
+
+            final_where = " AND ".join(conditions) if conditions else "1=1"
+
+            cur.execute(f"SELECT COUNT(*) FROM bills WHERE {final_where};", params)
+            total_orders = cur.fetchone()[0]
+            total_pages = max(1, (total_orders + limit - 1) // limit)
+
+            query = f"""
+            SELECT
+                bill_no, order_datetime, order_date, outlet_name, brand,
+                order_type, settlement, line_items_count, total_quantity, total_revenue
+            FROM bills
+            WHERE {final_where}
+            ORDER BY {order_col} {direction}
+            LIMIT ? OFFSET ?;
+            """
+            cur.execute(query, params + [limit, offset])
+        else:
+            where_sql, params = build_filter_clauses(filters, allow_category=True)
+            conditions = [where_sql] if where_sql != "1=1" else []
+
+            if search and search.strip():
+                q_str = search.strip()
+                if q_str.isdigit():
+                    conditions.append("bill_no = ?")
+                    params.append(int(q_str))
+                else:
+                    conditions.append("(outlet_name LIKE ? OR item LIKE ?)")
+                    params.extend([f"%{q_str}%", f"%{q_str}%"])
+
+            final_where = " AND ".join(conditions) if conditions else "1=1"
+
+            cur.execute(f"SELECT COUNT(DISTINCT bill_no) FROM orders WHERE {final_where};", params)
+            total_orders = cur.fetchone()[0]
+            total_pages = max(1, (total_orders + limit - 1) // limit)
+
+            query = f"""
+            SELECT
+                bill_no,
+                MIN(order_datetime) as order_datetime,
+                order_date,
+                outlet_name,
+                brand,
+                order_type,
+                settlement,
+                COUNT(*) as line_items_count,
+                SUM(quantity) as total_quantity,
+                ROUND(SUM(revenue), 2) as total_revenue
+            FROM orders
+            WHERE {final_where}
+            GROUP BY bill_no
+            ORDER BY {order_col} {direction}
+            LIMIT ? OFFSET ?;
+            """
+            cur.execute(query, params + [limit, offset])
+
         rows = cur.fetchall()
         conn.close()
 
