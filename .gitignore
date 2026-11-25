@@ -12,6 +12,19 @@ node_modules
 
 # Production
 /build
+dist/
+frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.pytest_cache/
 
 # Misc
 .DS_Store
@@ -35,5 +48,6 @@ next-env.d.ts
 
 # Large raw dataset (keep SQLite & Cube in git, raw 13MB xlsx can be downloaded via ETL)
 # data.xlsx is preserved locally
+data/data.xlsx
 
 .vercel
