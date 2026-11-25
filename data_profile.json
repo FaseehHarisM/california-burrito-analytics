@@ -1,0 +1,75 @@
+{
+  "total_rows": 300000,
+  "unique_orders": 110478,
+  "null_counts": {
+    "BillNo": 0,
+    "Outlet_Name": 0,
+    "Order_Datetime": 0,
+    "Group": 0,
+    "Order_Type": 0,
+    "Item": 0,
+    "Price": 0,
+    "Quantity": 0,
+    "Settlement": 0,
+    "Brand": 0
+  },
+  "date_range": [
+    "2025-06-17 11:02:40",
+    "2026-06-16 23:48:34"
+  ],
+  "total_revenue": 69480952.0,
+  "total_quantity": 434448,
+  "price_range": [
+    0.0,
+    599.0
+  ],
+  "quantity_range": [
+    1.0,
+    4.0
+  ],
+  "avg_order_value": 628.91,
+  "avg_items_per_order": 2.72,
+  "outlets": {
+    "Koramangala": 72073,
+    "Indiranagar": 65677,
+    "HSR Layout": 53798,
+    "Whitefield": 42039,
+    "JP Nagar": 35968,
+    "MG Road": 30445
+  },
+  "brands": {
+    "Burger Town": 300000
+  },
+  "groups": {
+    "Burgers": 100864,
+    "Sides": 54306,
+    "Drinks": 48130,
+    "Combos": 41796,
+    "Extras": 21206,
+    "Wraps": 18376,
+    "Desserts": 15322
+  },
+  "order_types": {
+    "Dine-In": 135372,
+    "Delivery": 104398,
+    "Takeaway": 60230
+  },
+  "settlements": {
+    "Cash/Card/Coupon": 189959,
+    "ZomatoPay": 47192,
+    "SwiggyPay": 47022,
+    "Dineout": 15827
+  },
+  "top_10_items": {
+    "Fish Fillet Burger": 10160,
+    "Classic Veg Burger": 10156,
+    "Spicy Zinger Burger": 10150,
+    "Cheese Blast Burger": 10146,
+    "Aloo Tikki Burger": 10098,
+    "Mushroom Swiss Burger": 10075,
+    "Smoky BBQ Burger": 10048,
+    "Paneer Makhani Burger": 10027,
+    "Double Chicken Burger": 10021,
+    "Crispy Chicken Burger": 9983
+  }
+}
