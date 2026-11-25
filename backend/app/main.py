@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
 from app.database.init_db import is_database_initialized, run_etl
+from app.services.analytics_service import AnalyticsService
 
 app = FastAPI(
     title="California Burrito POS Analytics API",
@@ -40,6 +41,8 @@ def startup_event():
         run_etl()
     else:
         print("Database is verified with 300,000+ transaction records.")
+    AnalyticsService.warm_cache()
+    print("Analytics query cache warmed.")
 
 # Include Endpoints Router
 app.include_router(api_router, prefix="/api")
