@@ -1,4 +1,4 @@
-/* ─── Import Google Font for professional feel ─────────────────────── */
+/* ─── Import Google Fonts ──────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
@@ -6,6 +6,9 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-cb-cream-bg text-cb-green font-sans antialiased;
     color: #1B4332;
@@ -16,54 +19,124 @@
   }
 }
 
-/* ─── Scrollbar: matches CB cream/green palette ───────────────────── */
+/* ─── Scrollbar: refined CB cream & forest green ───────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #F5F0DC; }
-::-webkit-scrollbar-thumb { background: #2D6A4F; border-radius: 9999px; }
+::-webkit-scrollbar-thumb { background: rgba(45, 106, 79, 0.55); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: #1B4332; }
 
-/* ─── Dashboard card: warm white with green-toned border ─────────── */
+/* ─── Modern Card Surfaces ─────────────────────────────────────────── */
 .bi-card {
-  @apply bg-white border border-cb-cream-dark rounded-xl;
-  box-shadow: 0 1px 3px 0 rgba(27, 67, 50, 0.07), 0 1px 2px -1px rgba(27, 67, 50, 0.04);
+  @apply bg-white rounded-2xl;
+  border: 1px solid #E2DCC8;
+  box-shadow:
+    0 1px 2px rgba(27, 67, 50, 0.04),
+    0 4px 12px -2px rgba(27, 67, 50, 0.04);
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s ease;
 }
 
-.bi-card-hover {
-  @apply transition-all duration-200;
-}
 .bi-card-hover:hover {
-  border-color: #2D6A4F;
-  box-shadow: 0 4px 12px 0 rgba(27, 67, 50, 0.10);
+  transform: translateY(-2px);
+  border-color: rgba(45, 106, 79, 0.45);
+  box-shadow:
+    0 4px 8px -2px rgba(27, 67, 50, 0.06),
+    0 12px 24px -4px rgba(27, 67, 50, 0.08);
 }
 
-/* ─── KPI card accent strip ───────────────────────────────────────── */
-.kpi-card-red {
-  border-top: 3px solid #E8231A !important;
-}
-.kpi-card-green {
-  border-top: 3px solid #1B4332 !important;
-}
-
-/* ─── Sidebar active item pill ────────────────────────────────────── */
-.nav-active {
-  background-color: #E8231A;
-  color: #FFFFFF;
-}
-.nav-active svg {
-  color: #FFFFFF;
-}
-
-/* ─── Filter preset pill ─────────────────────────────────────────── */
-.filter-active {
-  background-color: #1B4332;
-  color: #F5F0DC;
-}
-
-/* ─── Smooth fade on page entrance ───────────────────────────────── */
+/* ─── Silky Spring Motion Keyframes ────────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0);   }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0;  }
+}
+
+@keyframes loadingBar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(0%);    }
+  100% { transform: translateX(100%);  }
+}
+
 .animate-fade-in {
-  animation: fadeUp 0.25s ease-out both;
+  animation: fadeUp 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-backdrop {
+  animation: fadeIn 0.2s ease-out both;
+}
+
+.animate-loading-bar {
+  animation: loadingBar 1.2s ease-in-out infinite;
+}
+
+/* Cascading Stagger Delays */
+.stagger-1 { animation: fadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 30ms both; }
+.stagger-2 { animation: fadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 70ms both; }
+.stagger-3 { animation: fadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 110ms both; }
+.stagger-4 { animation: fadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
+.stagger-5 { animation: fadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 190ms both; }
+.stagger-6 { animation: fadeUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 230ms both; }
+
+/* Skeleton Shimmer */
+.shimmer-bg {
+  background: linear-gradient(90deg, #F3F0E6 25%, #FAF8F0 50%, #F3F0E6 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Respect accessibility reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

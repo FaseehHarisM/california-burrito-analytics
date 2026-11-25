@@ -44,17 +44,17 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   return (
     <header
-      className="h-16 px-6 flex items-center justify-between sticky top-0 z-30"
+      className="h-16 px-6 flex items-center justify-between sticky top-0 z-30 relative overflow-hidden"
       style={{
         backgroundColor: '#E8231A',
         borderBottom: '2px solid #C41D14',
-        boxShadow: '0 2px 8px rgba(232, 35, 26, 0.25)',
+        boxShadow: '0 2px 10px rgba(232, 35, 26, 0.22)',
       }}
     >
       {/* Title & Breadcrumb */}
-      <div className="min-w-0">
+      <div className="min-w-0 animate-fade-in" key={activeTab}>
         <div className="flex items-center space-x-2">
-          <span className="text-xs font-medium" style={{ color: 'rgba(245,240,220,0.72)' }}>
+          <span className="text-xs font-medium" style={{ color: 'rgba(245,240,220,0.75)' }}>
             Dashboard
           </span>
           <span style={{ color: 'rgba(245,240,220,0.45)' }}>/</span>
@@ -62,14 +62,13 @@ export const TopNav: React.FC<TopNavProps> = ({
             {current.title}
           </h2>
         </div>
-        <p className="text-xs hidden sm:block truncate" style={{ color: 'rgba(245,240,220,0.75)' }}>
+        <p className="text-xs hidden sm:block truncate" style={{ color: 'rgba(245,240,220,0.80)' }}>
           {current.subtitle}
         </p>
       </div>
 
       {/* Right Controls */}
       <div className="flex items-center space-x-2.5 shrink-0">
-        {/* Simple Status Indicator only if loading or offline */}
         {!isBackendHealthy && (
           <div
             className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
@@ -84,10 +83,10 @@ export const TopNav: React.FC<TopNavProps> = ({
           </div>
         )}
 
-        {/* Export CSV Button */}
+        {/* Download CSV */}
         <button
           onClick={onExport}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 cursor-pointer"
           style={{
             backgroundColor: 'rgba(245,240,220,0.16)',
             border: '1px solid rgba(245,240,220,0.32)',
@@ -101,11 +100,11 @@ export const TopNav: React.FC<TopNavProps> = ({
           <span className="hidden sm:inline">Download CSV</span>
         </button>
 
-        {/* Refresh Button */}
+        {/* Refresh */}
         <button
           onClick={onRefresh}
           disabled={isLoading}
-          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 disabled:opacity-60 cursor-pointer"
           style={{
             backgroundColor: 'rgba(245,240,220,0.16)',
             border: '1px solid rgba(245,240,220,0.32)',
@@ -116,9 +115,22 @@ export const TopNav: React.FC<TopNavProps> = ({
           title="Refresh dashboard"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span className="hidden md:inline">Refresh</span>
+          <span className="hidden md:inline">{isLoading ? 'Updating...' : 'Refresh'}</span>
         </button>
       </div>
+
+      {/* Subtle Smooth Top Loading Bar during async updates */}
+      {isLoading && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden"
+          style={{ backgroundColor: 'rgba(245,240,220,0.20)' }}
+        >
+          <div
+            className="h-full w-1/2 animate-loading-bar"
+            style={{ backgroundColor: '#F5F0DC' }}
+          />
+        </div>
+      )}
     </header>
   );
 };

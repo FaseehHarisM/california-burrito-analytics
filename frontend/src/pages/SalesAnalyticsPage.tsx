@@ -41,12 +41,17 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
 
   if (loading && !data) {
     return (
-      <div className="py-24 flex flex-col items-center justify-center space-y-3">
-        <div
-          className="h-8 w-8 border-2 border-t-transparent rounded-full animate-spin"
-          style={{ borderColor: '#E8231A', borderTopColor: 'transparent' }}
-        />
-        <p className="text-xs font-medium" style={{ color: '#7A7260' }}>Loading sales trends...</p>
+      <div className="space-y-6 animate-fade-in">
+        <div className="bi-card p-5 h-80 shimmer-bg" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bi-card p-5 h-72 shimmer-bg" />
+          <div className="bi-card p-5 h-72 shimmer-bg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bi-card p-5 h-44 shimmer-bg" />
+          <div className="bi-card p-5 h-44 shimmer-bg" />
+          <div className="bi-card p-5 h-44 shimmer-bg" />
+        </div>
       </div>
     );
   }
@@ -60,15 +65,21 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-2.5 rounded-lg shadow-lg text-xs space-y-1" style={{ border: '1px solid #C8C2AA' }}>
-          <p className="font-semibold pb-1" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>{label}</p>
+        <div
+          className="bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-xl text-xs space-y-1.5"
+          style={{ border: '1px solid #C8C2AA' }}
+        >
+          <p className="font-bold pb-1" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} className="flex items-center space-x-2" style={{ color: entry.color }}>
-              <span className="font-medium">{entry.name}:</span>
-              <span className="font-bold text-slate-900">
+            <div key={index} className="flex items-center justify-between space-x-4">
+              <span className="flex items-center space-x-1.5 font-medium" style={{ color: '#5C5648' }}>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color || '#1B4332' }} />
+                <span>{entry.name}:</span>
+              </span>
+              <span className="font-bold font-mono" style={{ color: '#1B4332' }}>
                 {entry.dataKey === 'revenue' ? formatCurrency(entry.value) : formatNumber(entry.value)}
               </span>
-            </p>
+            </div>
           ))}
         </div>
       );
@@ -77,9 +88,13 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Top Controls & Main Sales Velocity Line Chart */}
-      <div className="bi-card p-5 space-y-4">
+    <div
+      className={`space-y-6 animate-fade-in transition-opacity duration-200 ${
+        loading ? 'opacity-65 pointer-events-none' : 'opacity-100'
+      }`}
+    >
+      {/* Top Controls & Main Sales Chart */}
+      <div className="bi-card bi-card-hover p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#1B4332' }}>
@@ -91,17 +106,17 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
           </div>
 
           <div
-            className="flex p-0.5 rounded-lg text-xs font-medium"
-            style={{ backgroundColor: '#F3F0E6', border: '1px solid #C8C2AA' }}
+            className="flex p-1 rounded-xl text-xs font-medium"
+            style={{ backgroundColor: '#F3F0E6', border: '1px solid #D8D1BD' }}
           >
             {(['daily', 'weekly', 'monthly'] as const).map((view) => (
               <button
                 key={view}
                 onClick={() => setSalesView(view)}
-                className="px-3 py-1 rounded-md capitalize transition-colors"
+                className="px-3 py-1 rounded-lg capitalize transition-all duration-200 active:scale-95 cursor-pointer"
                 style={
                   salesView === view
-                    ? { backgroundColor: '#1B4332', color: '#F5F0DC', fontWeight: 600 }
+                    ? { backgroundColor: '#1B4332', color: '#F5F0DC', fontWeight: 600, boxShadow: '0 2px 6px rgba(27,67,50,0.2)' }
                     : { color: '#5C5648' }
                 }
               >
@@ -121,21 +136,21 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
               <Line
                 type="monotone"
                 dataKey="revenue"
-                name="Gross Sales"
+                name="Total Sales"
                 stroke="#E8231A"
                 strokeWidth={2.5}
                 dot={false}
-                activeDot={{ r: 5, fill: '#E8231A' }}
+                activeDot={{ r: 5, fill: '#E8231A', stroke: '#FFFFFF', strokeWidth: 2 }}
+                animationDuration={650}
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* 2-Column Row: Day of Week & Hourly Rush */}
+      {/* 2-Column Row: Day of Week & Busiest Hours */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales by Day of Week */}
-        <div className="bi-card p-5 space-y-4">
+        <div className="bi-card bi-card-hover p-5 space-y-4">
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4" style={{ color: '#1B4332' }} />
             <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#1B4332' }}>
@@ -150,14 +165,13 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
                 <XAxis dataKey="day" stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatCompactCurrency} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="revenue" name="Sales Revenue" fill="#1B4332" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Sales" fill="#1B4332" radius={[6, 6, 0, 0]} animationDuration={600} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Sales by Hour (Rush Hours) */}
-        <div className="bi-card p-5 space-y-4">
+        <div className="bi-card bi-card-hover p-5 space-y-4">
           <div className="flex items-center space-x-2">
             <Clock className="h-4 w-4" style={{ color: '#E8231A' }} />
             <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#1B4332' }}>
@@ -172,18 +186,17 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
                 <XAxis dataKey="hour" stroke="#9C9480" tick={{ fontSize: 10 }} tickLine={false} />
                 <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatCompactCurrency} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="revenue" name="Hourly Revenue" fill="#E8231A" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Hourly Sales" fill="#E8231A" radius={[6, 6, 0, 0]} animationDuration={600} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* 3-Column Breakdown Row: Outlets, Fulfillment, Payment */}
+      {/* 3-Column Breakdown Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* By Outlet */}
-        <div className="bi-card p-4 space-y-3">
-          <div className="flex items-center space-x-2 font-semibold text-xs pb-2" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>
+        <div className="bi-card bi-card-hover p-4 space-y-3">
+          <div className="flex items-center space-x-2 font-semibold text-xs pb-2" style={{ color: '#1B4332', borderBottom: '1px solid #EDE8D8' }}>
             <Store className="h-3.5 w-3.5" style={{ color: '#E8231A' }} />
             <span>Sales by Store</span>
           </div>
@@ -200,9 +213,8 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
           </div>
         </div>
 
-        {/* By Order Type */}
-        <div className="bi-card p-4 space-y-3">
-          <div className="flex items-center space-x-2 font-semibold text-xs pb-2" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>
+        <div className="bi-card bi-card-hover p-4 space-y-3">
+          <div className="flex items-center space-x-2 font-semibold text-xs pb-2" style={{ color: '#1B4332', borderBottom: '1px solid #EDE8D8' }}>
             <ShoppingBag className="h-3.5 w-3.5" style={{ color: '#2D6A4F' }} />
             <span>Sales by Order Type</span>
           </div>
@@ -219,9 +231,8 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
           </div>
         </div>
 
-        {/* By Payment Method */}
-        <div className="bi-card p-4 space-y-3">
-          <div className="flex items-center space-x-2 font-semibold text-xs pb-2" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>
+        <div className="bi-card bi-card-hover p-4 space-y-3">
+          <div className="flex items-center space-x-2 font-semibold text-xs pb-2" style={{ color: '#1B4332', borderBottom: '1px solid #EDE8D8' }}>
             <CreditCard className="h-3.5 w-3.5" style={{ color: '#E8231A' }} />
             <span>Sales by Payment Method</span>
           </div>

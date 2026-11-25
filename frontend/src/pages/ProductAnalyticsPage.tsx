@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, ArrowUpDown, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { FilterState, ProductPerformanceItem } from '../types';
 import { api } from '../services/api';
 import { formatCurrency, formatCompactCurrency, formatNumber } from '../utils/formatters';
@@ -48,12 +48,23 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
     return sortAsc ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
   });
 
+  if (loading && !data) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bi-card p-5 h-72 shimmer-bg" />
+          <div className="bi-card p-5 h-72 shimmer-bg" />
+        </div>
+        <div className="bi-card p-5 h-96 shimmer-bg" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 2-Column: Top 5 & Lowest 5 Selling Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top 5 Best-Selling */}
-        <div className="bi-card p-5 space-y-4">
+        <div className="bi-card bi-card-hover p-5 space-y-4">
           <div className="flex items-center space-x-2">
             <TrendingUp className="h-4 w-4" style={{ color: '#2D6A4F' }} />
             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#1B4332' }}>
@@ -64,18 +75,23 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
             {data?.top_selling_products?.map((p: any, idx: number) => (
               <div
                 key={p.product}
-                className="p-2.5 rounded-lg flex items-center justify-between"
+                className="p-2.5 rounded-xl flex items-center justify-between transition-all duration-150 hover:translate-x-0.5"
                 style={{ backgroundColor: '#FAF8F0', border: '1px solid #E5E0D0' }}
               >
                 <div className="flex items-center space-x-2.5">
-                  <span className="font-bold w-4" style={{ color: '#2D6A4F' }}>#{idx + 1}</span>
+                  <span
+                    className="font-bold w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
+                    style={{ backgroundColor: '#EAF4EE', color: '#1B4332' }}
+                  >
+                    #{idx + 1}
+                  </span>
                   <div>
                     <h5 className="font-semibold truncate max-w-[200px]" style={{ color: '#1B4332' }}>{p.product}</h5>
                     <span className="text-[11px]" style={{ color: '#7A7260' }}>{p.category}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold" style={{ color: '#1B4332' }}>{formatCompactCurrency(p.total_revenue)}</div>
+                  <div className="font-bold font-mono" style={{ color: '#1B4332' }}>{formatCompactCurrency(p.total_revenue)}</div>
                   <div className="text-[10px] font-mono" style={{ color: '#7A7260' }}>{formatNumber(p.quantity_sold)} units</div>
                 </div>
               </div>
@@ -83,8 +99,7 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
           </div>
         </div>
 
-        {/* Lowest 5 Selling (Underperforming) */}
-        <div className="bi-card p-5 space-y-4">
+        <div className="bi-card bi-card-hover p-5 space-y-4">
           <div className="flex items-center space-x-2">
             <TrendingDown className="h-4 w-4" style={{ color: '#E8231A' }} />
             <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#1B4332' }}>
@@ -95,18 +110,23 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
             {data?.lowest_selling_products?.map((p: any, idx: number) => (
               <div
                 key={p.product}
-                className="p-2.5 rounded-lg flex items-center justify-between"
+                className="p-2.5 rounded-xl flex items-center justify-between transition-all duration-150 hover:translate-x-0.5"
                 style={{ backgroundColor: '#FAF8F0', border: '1px solid #E5E0D0' }}
               >
                 <div className="flex items-center space-x-2.5">
-                  <span className="font-bold w-4" style={{ color: '#E8231A' }}>#{idx + 1}</span>
+                  <span
+                    className="font-bold w-6 h-6 rounded-full flex items-center justify-center text-[11px]"
+                    style={{ backgroundColor: '#FDF0EF', color: '#E8231A' }}
+                  >
+                    #{idx + 1}
+                  </span>
                   <div>
                     <h5 className="font-semibold truncate max-w-[200px]" style={{ color: '#1B4332' }}>{p.product}</h5>
                     <span className="text-[11px]" style={{ color: '#7A7260' }}>{p.category}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold" style={{ color: '#1B4332' }}>{formatCompactCurrency(p.total_revenue)}</div>
+                  <div className="font-bold font-mono" style={{ color: '#1B4332' }}>{formatCompactCurrency(p.total_revenue)}</div>
                   <div className="text-[10px] font-mono" style={{ color: '#7A7260' }}>{formatNumber(p.quantity_sold)} units</div>
                 </div>
               </div>
@@ -115,7 +135,7 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
         </div>
       </div>
 
-      {/* Searchable & Sortable Product Catalog Table */}
+      {/* Searchable & Sortable Menu Items Table */}
       <div className="bi-card p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -133,7 +153,7 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
               placeholder="Search product or category..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-56 sm:w-64 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none"
+              className="w-56 sm:w-64 rounded-xl pl-8 pr-8 py-1.5 text-xs focus:outline-none focus:ring-2 transition-all"
               style={{
                 backgroundColor: '#FAF8F0',
                 border: '1px solid #C8C2AA',
@@ -141,53 +161,63 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
               }}
             />
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5" style={{ color: '#7A7260' }} />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-2 p-0.5 rounded-full hover:bg-black/5 cursor-pointer"
+                style={{ color: '#7A7260' }}
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid #E5E0D0' }}>
+        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid #E5E0D0' }}>
           <table className="w-full text-left text-xs">
             <thead
               className="uppercase font-semibold select-none"
               style={{ backgroundColor: '#F3F0E6', color: '#1B4332', borderBottom: '1px solid #C8C2AA' }}
             >
               <tr>
-                <th className="py-2.5 px-4 cursor-pointer" onClick={() => handleSort('rank')}>
+                <th className="py-3 px-4 cursor-pointer hover:opacity-80" onClick={() => handleSort('rank')}>
                   <div className="flex items-center space-x-1">
                     <span>Rank</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 cursor-pointer" onClick={() => handleSort('product')}>
+                <th className="py-3 px-4 cursor-pointer hover:opacity-80" onClick={() => handleSort('product')}>
                   <div className="flex items-center space-x-1">
                     <span>Product Name</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 cursor-pointer" onClick={() => handleSort('category')}>
+                <th className="py-3 px-4 cursor-pointer hover:opacity-80" onClick={() => handleSort('category')}>
                   <div className="flex items-center space-x-1">
                     <span>Category</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 text-right cursor-pointer" onClick={() => handleSort('quantity_sold')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:opacity-80" onClick={() => handleSort('quantity_sold')}>
                   <div className="flex items-center justify-end space-x-1">
                     <span>Units Sold</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 text-right cursor-pointer" onClick={() => handleSort('total_revenue')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:opacity-80" onClick={() => handleSort('total_revenue')}>
                   <div className="flex items-center justify-end space-x-1">
                     <span>Total Sales</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 text-right cursor-pointer" onClick={() => handleSort('avg_selling_price')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:opacity-80" onClick={() => handleSort('avg_selling_price')}>
                   <div className="flex items-center justify-end space-x-1">
                     <span>Avg Price</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 text-right cursor-pointer" onClick={() => handleSort('revenue_contribution_pct')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:opacity-80" onClick={() => handleSort('revenue_contribution_pct')}>
                   <div className="flex items-center justify-end space-x-1">
                     <span>Sales Share %</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
@@ -198,15 +228,15 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center" style={{ color: '#7A7260' }}>Loading product data...</td>
+                  <td colSpan={7} className="py-12 text-center" style={{ color: '#7A7260' }}>Loading menu items...</td>
                 </tr>
               ) : sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center" style={{ color: '#7A7260' }}>No products match your search.</td>
+                  <td colSpan={7} className="py-12 text-center" style={{ color: '#7A7260' }}>No menu items match your search.</td>
                 </tr>
               ) : (
                 sortedProducts.map((p) => (
-                  <tr key={p.product} className="hover:bg-cb-cream-bg/70 transition-colors">
+                  <tr key={p.product} className="hover:bg-cb-cream-bg/85 transition-colors">
                     <td className="py-2.5 px-4 font-mono font-medium" style={{ color: '#9C9480' }}>#{p.rank}</td>
                     <td className="py-2.5 px-4 font-semibold" style={{ color: '#1B4332' }}>{p.product}</td>
                     <td className="py-2.5 px-4">

@@ -6,6 +6,7 @@ import {
   Eye,
   ArrowUpDown,
   Download,
+  X,
 } from 'lucide-react';
 import { FilterState, OrderDetail, PaginatedOrdersResponse } from '../types';
 import { api } from '../services/api';
@@ -68,7 +69,6 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Card Header & Controls */}
       <div className="bi-card p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -84,10 +84,10 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
             <form onSubmit={handleSearchSubmit} className="relative">
               <input
                 type="text"
-                placeholder="Search Bill # or outlet..."
+                placeholder="Search Order # or store..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-52 sm:w-64 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none"
+                className="w-52 sm:w-64 rounded-xl pl-8 pr-8 py-1.5 text-xs focus:outline-none focus:ring-2 transition-all"
                 style={{
                   backgroundColor: '#FAF8F0',
                   border: '1px solid #C8C2AA',
@@ -95,12 +95,26 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
                 }}
               />
               <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5" style={{ color: '#7A7260' }} />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    fetchOrders(1, '');
+                  }}
+                  className="absolute right-2.5 top-2 p-0.5 rounded-full hover:bg-black/5 cursor-pointer"
+                  style={{ color: '#7A7260' }}
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </form>
 
             <a
               href={api.getExportUrl(filters, search)}
               download
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
               style={{
                 backgroundColor: '#1B4332',
                 color: '#F5F0DC',
@@ -108,82 +122,87 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
               }}
             >
               <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Export CSV</span>
+              <span className="hidden sm:inline">Download CSV</span>
             </a>
           </div>
         </div>
 
-        {/* Master Transactions Table */}
-        <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid #E5E0D0' }}>
+        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid #E5E0D0' }}>
           <table className="w-full text-left text-xs">
             <thead
               className="uppercase font-semibold select-none"
               style={{ backgroundColor: '#F3F0E6', color: '#1B4332', borderBottom: '1px solid #C8C2AA' }}
             >
               <tr>
-                <th className="py-2.5 px-4 cursor-pointer" onClick={() => handleSortToggle('bill_no')}>
+                <th className="py-3 px-4 cursor-pointer hover:opacity-80" onClick={() => handleSortToggle('bill_no')}>
                   <div className="flex items-center space-x-1">
                     <span>Order #</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 cursor-pointer" onClick={() => handleSortToggle('order_datetime')}>
+                <th className="py-3 px-4 cursor-pointer hover:opacity-80" onClick={() => handleSortToggle('order_datetime')}>
                   <div className="flex items-center space-x-1">
                     <span>Date & Time</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 cursor-pointer" onClick={() => handleSortToggle('outlet_name')}>
+                <th className="py-3 px-4 cursor-pointer hover:opacity-80" onClick={() => handleSortToggle('outlet_name')}>
                   <div className="flex items-center space-x-1">
                     <span>Store</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4">Order Type</th>
-                <th className="py-2.5 px-4">Payment</th>
-                <th className="py-2.5 px-4 text-center">Items</th>
-                <th className="py-2.5 px-4 text-center cursor-pointer" onClick={() => handleSortToggle('total_quantity')}>
+                <th className="py-3 px-4">Order Type</th>
+                <th className="py-3 px-4">Payment</th>
+                <th className="py-3 px-4 text-center">Items</th>
+                <th className="py-3 px-4 text-center cursor-pointer hover:opacity-80" onClick={() => handleSortToggle('total_quantity')}>
                   <div className="flex items-center justify-center space-x-1">
                     <span>Qty</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 text-right cursor-pointer" onClick={() => handleSortToggle('total_revenue')}>
+                <th className="py-3 px-4 text-right cursor-pointer hover:opacity-80" onClick={() => handleSortToggle('total_revenue')}>
                   <div className="flex items-center justify-end space-x-1">
                     <span>Total Amount</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </th>
-                <th className="py-2.5 px-4 text-center">Receipt</th>
+                <th className="py-3 px-4 text-center">Receipt</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center" style={{ color: '#7A7260' }}>Loading order transactions...</td>
-                </tr>
+              {loading && !data ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={9} className="p-2.5">
+                      <div className="h-6 rounded shimmer-bg" />
+                    </td>
+                  </tr>
+                ))
               ) : !data || data.orders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center" style={{ color: '#7A7260' }}>No orders match your filter criteria.</td>
+                  <td colSpan={9} className="py-12 text-center" style={{ color: '#7A7260' }}>No orders match your filter selection.</td>
                 </tr>
               ) : (
                 data.orders.map((o) => (
                   <tr
                     key={o.bill_no}
                     onClick={() => handleViewBill(o.bill_no)}
-                    className="hover:bg-cb-cream-bg/80 cursor-pointer transition-colors"
+                    className={`hover:bg-cb-cream-bg/90 cursor-pointer transition-colors ${
+                      loading ? 'opacity-60' : ''
+                    }`}
                   >
                     <td className="py-2.5 px-4 font-mono font-bold" style={{ color: '#E8231A' }}>#{o.bill_no}</td>
                     <td className="py-2.5 px-4 text-slate-600">{o.order_datetime}</td>
                     <td className="py-2.5 px-4 font-semibold" style={{ color: '#1B4332' }}>{o.outlet}</td>
                     <td className="py-2.5 px-4">
                       <span
-                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                        className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                         style={
                           o.order_type === 'Dine-In'
-                            ? { backgroundColor: '#EAF4EE', color: '#1B4332', border: '1px solid rgba(27,67,50,0.25)' }
+                            ? { backgroundColor: '#EAF4EE', color: '#1B4332', border: '1px solid rgba(27,67,50,0.22)' }
                             : o.order_type === 'Delivery'
-                            ? { backgroundColor: '#FDF0EF', color: '#E8231A', border: '1px solid rgba(232,35,26,0.25)' }
+                            ? { backgroundColor: '#FDF0EF', color: '#E8231A', border: '1px solid rgba(232,35,26,0.22)' }
                             : { backgroundColor: '#F5F0DC', color: '#5C5648', border: '1px solid #C8C2AA' }
                         }
                       >
@@ -202,11 +221,11 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
                           e.stopPropagation();
                           handleViewBill(o.bill_no);
                         }}
-                        className="p-1 rounded-md transition-colors"
-                        style={{ color: '#2D6A4F' }}
-                        title="View Line Items"
+                        className="p-1.5 rounded-lg transition-all hover:scale-110 active:scale-95 cursor-pointer"
+                        style={{ color: '#2D6A4F', backgroundColor: '#EAF4EE' }}
+                        title="View Receipt"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -217,7 +236,7 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between text-xs pt-1" style={{ color: '#7A7260' }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1" style={{ color: '#7A7260' }}>
           <div>
             Page <span className="font-semibold" style={{ color: '#1B4332' }}>{page}</span> of{' '}
             <span className="font-semibold" style={{ color: '#1B4332' }}>{data?.total_pages || 1}</span> ({data?.total_orders.toLocaleString() || 0} orders)
@@ -227,7 +246,7 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
             <button
               onClick={() => fetchOrders(page - 1)}
               disabled={page <= 1 || loading}
-              className="flex items-center space-x-1 px-3 py-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer"
               style={{ border: '1px solid #C8C2AA', backgroundColor: '#FAF8F0', color: '#1B4332' }}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -236,7 +255,7 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
             <button
               onClick={() => fetchOrders(page + 1)}
               disabled={!data || page >= data.total_pages || loading}
-              className="flex items-center space-x-1 px-3 py-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer"
               style={{ border: '1px solid #C8C2AA', backgroundColor: '#FAF8F0', color: '#1B4332' }}
             >
               <span>Next</span>
