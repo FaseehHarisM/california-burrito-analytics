@@ -1,0 +1,17 @@
+{
+  "raw_excel_scan_ms": 20346.8,
+  "sqlite_kpis_ms": 16.99,
+  "sqlite_daily_trend_ms": 314.15,
+  "sqlite_filtered_slice_ms": 20.4,
+  "sqlite_paginated_query_ms": 0.37,
+  "olap_cube_slice_ms": 13.76,
+  "speedup_factor": 1478.7,
+  "summary": {
+    "raw_excel": "20346.8 ms",
+    "sqlite_kpis": "16.99 ms",
+    "sqlite_daily_trend": "314.15 ms",
+    "sqlite_paginated": "0.37 ms",
+    "olap_cube_slice": "13.76 ms",
+    "speedup_vs_excel": "1478.7x faster"
+  }
+}
