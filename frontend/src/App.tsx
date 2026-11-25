@@ -37,7 +37,6 @@ export function App() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isBackendHealthy, setIsBackendHealthy] = useState(true);
-  const [processTimeMs, setProcessTimeMs] = useState<string>('12.5');
 
   // Load Filter Options & Health check on mount
   useEffect(() => {
@@ -59,7 +58,6 @@ export function App() {
   // Fetch Overview Data when filters or trendAggregation change
   const loadOverviewData = useCallback(async (currentFilters: FilterState, agg: 'daily' | 'weekly' | 'monthly') => {
     setIsLoading(true);
-    const t0 = performance.now();
     try {
       const [sum, revTrend, ordTrend, cats, types, settles, prods, outls] = await Promise.all([
         api.getDashboardSummary(currentFilters),
@@ -80,9 +78,6 @@ export function App() {
       setSettlements(settles);
       setTopProducts(prods);
       setOutlets(outls);
-
-      const duration = performance.now() - t0;
-      setProcessTimeMs(duration.toFixed(1));
       setIsBackendHealthy(true);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -135,7 +130,6 @@ export function App() {
       onRefresh={handleRefresh}
       onExport={handleExport}
       isLoading={isLoading}
-      processTimeMs={processTimeMs}
       isBackendHealthy={isBackendHealthy}
     >
       {activeTab === 'overview' && (

@@ -7,7 +7,7 @@ interface KPICardProps {
   subtext: string;
   icon: LucideIcon;
   badge?: string;
-  badgeColor?: 'blue' | 'emerald' | 'amber' | 'purple';
+  badgeColor?: 'red' | 'green' | 'amber' | 'cream';
 }
 
 export const KPICard: React.FC<KPICardProps> = ({
@@ -16,36 +16,54 @@ export const KPICard: React.FC<KPICardProps> = ({
   subtext,
   icon: Icon,
   badge,
-  badgeColor = 'blue',
+  badgeColor = 'green',
 }) => {
-  const badgeStyles = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200/60',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200/60',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200/60',
+  const badgeStyles: Record<string, React.CSSProperties> = {
+    red:   { backgroundColor: '#FDF0EF', color: '#E8231A', border: '1px solid rgba(232,35,26,0.25)' },
+    green: { backgroundColor: '#EAF4EE', color: '#1B4332', border: '1px solid rgba(27,67,50,0.25)'  },
+    amber: { backgroundColor: '#FEF9EC', color: '#92400E', border: '1px solid rgba(146,64,14,0.20)' },
+    cream: { backgroundColor: '#F5F0DC', color: '#5C5648', border: '1px solid #C8C2AA'              },
   };
 
   return (
-    <div className="bi-card p-4 bi-card-hover flex flex-col justify-between">
+    <div
+      className="bi-card bi-card-hover p-4 flex flex-col justify-between"
+      style={{ borderTop: '3px solid #E8231A' }}
+    >
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">
+          <span
+            className="text-xs font-semibold uppercase tracking-wide leading-tight"
+            style={{ color: '#7A7260' }}
+          >
             {title}
           </span>
-          <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-500">
-            <Icon className="h-4 w-4" />
+          <div
+            className="p-1.5 rounded-lg"
+            style={{ backgroundColor: '#FDF0EF', border: '1px solid rgba(232,35,26,0.15)' }}
+          >
+            <Icon className="h-4 w-4" style={{ color: '#E8231A' }} />
           </div>
         </div>
 
-        <div className="text-2xl font-bold text-slate-900 tracking-tight">
+        <div
+          className="text-2xl font-bold tracking-tight"
+          style={{ color: '#1B4332' }}
+        >
           {value}
         </div>
       </div>
 
-      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-        <span className="text-slate-500 text-[11px] truncate">{subtext}</span>
+      <div
+        className="mt-2.5 pt-2 flex items-center justify-between text-xs"
+        style={{ borderTop: '1px solid #E5E0D0' }}
+      >
+        <span className="text-[11px] leading-tight" style={{ color: '#7A7260' }}>{subtext}</span>
         {badge && (
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeStyles[badgeColor]} shrink-0 ml-1`}>
+          <span
+            className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ml-1"
+            style={badgeStyles[badgeColor]}
+          >
             {badge}
           </span>
         )}

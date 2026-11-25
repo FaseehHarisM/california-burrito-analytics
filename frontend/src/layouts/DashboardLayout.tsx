@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Sidebar, ActiveTab } from '../components/Sidebar';
 import { TopNav } from '../components/TopNav';
 import { FilterBar } from '../components/FilterBar';
-import { ArchitectureModal } from '../components/ArchitectureModal';
 import { FilterState, FilterOptions } from '../types';
 
 interface DashboardLayoutProps {
@@ -15,7 +14,6 @@ interface DashboardLayoutProps {
   onRefresh: () => void;
   onExport: () => void;
   isLoading: boolean;
-  processTimeMs?: string;
   isBackendHealthy: boolean;
   children: React.ReactNode;
 }
@@ -30,22 +28,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onRefresh,
   onExport,
   isLoading,
-  processTimeMs,
   isBackendHealthy,
   children,
 }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isArchModalOpen, setIsArchModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen flex" style={{ backgroundColor: '#FAF8F0' }}>
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         onTabChange={onTabChange}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        onOpenArchModal={() => setIsArchModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -60,13 +55,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onRefresh={onRefresh}
           onExport={onExport}
           isLoading={isLoading}
-          processTimeMs={processTimeMs}
           isBackendHealthy={isBackendHealthy}
         />
 
         {/* Page Container */}
-        <main className="p-4 sm:p-6 space-y-6 flex-1 max-w-7xl w-full mx-auto min-w-0">
-          {/* Global Dynamic Filter Bar */}
+        <main className="p-4 sm:p-6 space-y-6 flex-1 max-w-7xl w-full mx-auto min-w-0" style={{ backgroundColor: '#FAF8F0' }}>
+          {/* Filter Bar */}
           <FilterBar
             filters={filters}
             options={filterOptions}
@@ -78,28 +72,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {children}
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-slate-200/80 bg-white py-4 px-6 text-xs text-slate-500">
+        {/* Clean General Brand Footer */}
+        <footer className="py-4 px-6 text-xs" style={{ borderTop: '1px solid #E5E0D0', backgroundColor: '#1B4332' }}>
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div>
-              <span className="font-semibold text-slate-700">California Burrito / Burger Town</span>
-              <span className="mx-2">•</span>
-              <span>Software Developer Intern Technical Assessment</span>
+            <div style={{ color: '#F5F0DC' }}>
+              <span className="font-bold">California Burrito</span>
+              <span className="mx-2" style={{ color: 'rgba(245,240,220,0.4)' }}>•</span>
+              <span style={{ color: 'rgba(245,240,220,0.75)' }}>Business Analytics Dashboard</span>
             </div>
-            <div className="flex items-center space-x-3 text-slate-400">
-              <span>SQLite Star Schema + FastAPI</span>
+            <div className="flex items-center space-x-3" style={{ color: 'rgba(245,240,220,0.65)' }}>
+              <span>6 Bangalore Outlets</span>
               <span>•</span>
-              <span className="text-emerald-600 font-medium">1,478x Query Speedup</span>
+              <span>Jun 2025 – Jun 2026</span>
             </div>
           </div>
         </footer>
       </div>
-
-      {/* Architecture Decisions Modal */}
-      <ArchitectureModal
-        isOpen={isArchModalOpen}
-        onClose={() => setIsArchModalOpen(false)}
-      />
     </div>
   );
 };
