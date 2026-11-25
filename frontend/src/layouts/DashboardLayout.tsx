@@ -56,7 +56,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         className={`flex-1 flex flex-col min-h-screen min-w-0 ${
           isSidebarCollapsed ? 'ml-16' : 'ml-64'
         }`}
-        style={{ transition: 'margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
+        style={{ transition: 'margin-left 0.36s cubic-bezier(0.22, 1, 0.36, 1)' }}
       >
         {/* Top Navigation */}
         <TopNav
