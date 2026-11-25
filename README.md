@@ -1,6 +1,8 @@
 # California Burrito — Business Analytics Dashboard
 
 > **Full-Stack Restaurant Analytics Application**  
+> **Live Dashboard (Vercel):** [https://california-burrito-analytics-six.vercel.app/](https://california-burrito-analytics-six.vercel.app/)  
+> **Live Backend API (Render):** [https://california-burrito-api.onrender.com/api/health](https://california-burrito-api.onrender.com/api/health)  
 > **Frontend:** React 18 + Vite + TypeScript + Tailwind CSS + Recharts + Lucide Icons  
 > **Backend:** Python + FastAPI + Pandas + SQLite  
 > **Repository:** [https://github.com/FaseehHarisM/california-burrito-analytics](https://github.com/FaseehHarisM/california-burrito-analytics)
@@ -178,18 +180,21 @@ npm --prefix frontend run build
 
 ## Cloud Deployment (Render + Vercel)
 
+- **Live Frontend URL:** [https://california-burrito-analytics-six.vercel.app/](https://california-burrito-analytics-six.vercel.app/)
+- **Live Backend API URL:** [https://california-burrito-api.onrender.com](https://california-burrito-api.onrender.com)
+
 ### Backend on Render (`render.yaml`)
 - **Build Command:** `pip install -r backend/requirements.txt && python backend/scripts/ingest_data.py`
 - **Start Command:** `python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT`
 - **Environment Variables:**
   - `PYTHON_VERSION=3.11.9`
-  - `CORS_ORIGINS=https://<your-vercel-domain>.vercel.app` (exact allowed origin(s), comma-separated; defaults to `*` in `render.yaml` for initial staging—restrict to your live Vercel URL in production)
+  - `CORS_ORIGINS=https://california-burrito-analytics-six.vercel.app` (exact allowed origin(s), comma-separated; restrict in Render dashboard if staging `*` was used initially)
 
 ### Frontend on Vercel (`frontend/vercel.json`)
 - **Root Directory:** `frontend`
 - **Framework Preset:** Vite (`npm run build`, output directory `dist`)
 - **SPA Routing:** `frontend/vercel.json` rewrites `/(.*)` -> `/index.html`
-- **Environment Variable:** `VITE_API_URL=https://<your-render-service>.onrender.com` (`frontend/src/services/api.ts` strips trailing slashes automatically)
+- **Environment Variable:** `VITE_API_URL=https://california-burrito-api.onrender.com` (`frontend/src/services/api.ts` strips trailing slashes automatically)
 
 ---
 
@@ -223,6 +228,6 @@ All analytical endpoints accept optional filter parameters: `start_date` (`YYYY-
 
 1. **Static Historical Dataset / Ephemeral Container Disk:** Render's free tier uses an ephemeral disk; rebuilding `data/analytics.db` (`93.89 MB`) from `data.xlsx` during `buildCommand` guarantees clean startup after restarts without requiring paid persistent block storage, assuming historical read-only data.
 2. **CSV Export Row Limit:** `/api/export` caps downloads at `5,000` orders per request to bound server memory and stream time on free-tier instances.
-3. **Production CORS Tightening Required:** `render.yaml` currently specifies `CORS_ORIGINS: "*"` for initial setup flexibility; update it in the Render dashboard to your exact Vercel URL (`https://...`) before final production lock-down.
+3. **CORS & Free-Tier Cold Starts:** [render.yaml](render.yaml) restricts `CORS_ORIGINS` to `https://california-burrito-analytics-six.vercel.app`; note that Render Free web services spin down after inactivity, so the first API request after an idle period can take ~15–45s while the container wakes.
 4. **Worker-Local Cache Scope:** The 256-entry `OrderedDict` cache lives inside the Python worker process; single-worker Uvicorn deployment matches SQLite's single-file read model.
 5. **Frontend Bundle Size Warning:** Vite reports `dist/assets/index-DFrnkNV7.js` (`671.22 kB` minified, `180.54 kB` gzipped) exceeding the 500 kB chunk warning threshold; splitting chart/page bundles via dynamic `import()` or `manualChunks` is an optional future optimization.
