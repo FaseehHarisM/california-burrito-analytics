@@ -8,7 +8,7 @@
 ## 🚀 Live Demo & Deployment
 
 - **Live Deployed Application:** `https://california-burrito-analytics.vercel.app` *(or custom deployed URL)*
-- **GitHub Repository:** Public Git Repository with complete commit history & reproducible ETL pipeline
+- **GitHub Repository:** [https://github.com/FaseehHarisM/california-burrito-analytics](https://github.com/FaseehHarisM/california-burrito-analytics)
 - **Target Dataset:** POS Order Transactions (`data.xlsx` — 300,000 rows, 110,478 unique orders, ₹6.95 Cr gross revenue)
 - **Local Host:** `http://localhost:3000`
 
@@ -147,7 +147,7 @@ The application includes **7 distinct visualizations** exceeding the assessment 
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/your-username/california-burrito-analytics.git
+git clone https://github.com/FaseehHarisM/california-burrito-analytics.git
 cd california-burrito-analytics
 npm install
 ```
