@@ -1,35 +1,69 @@
+/* ─── Import Google Font for professional feel ─────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
-    color: #0F172A;
+    @apply bg-cb-cream-bg text-cb-green font-sans antialiased;
+    color: #1B4332;
+  }
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Subtle modern scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #F1F5F9;
-}
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
-}
+/* ─── Scrollbar: matches CB cream/green palette ───────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F5F0DC; }
+::-webkit-scrollbar-thumb { background: #2D6A4F; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #1B4332; }
 
-/* Card subtle border & shadow */
+/* ─── Dashboard card: warm white with green-toned border ─────────── */
 .bi-card {
-  @apply bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.03),0_1px_2px_-1px_rgba(0,0,0,0.03)];
+  @apply bg-white border border-cb-cream-dark rounded-xl;
+  box-shadow: 0 1px 3px 0 rgba(27, 67, 50, 0.07), 0 1px 2px -1px rgba(27, 67, 50, 0.04);
 }
 
 .bi-card-hover {
-  @apply transition-all duration-200 hover:border-slate-300 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.05)];
+  @apply transition-all duration-200;
+}
+.bi-card-hover:hover {
+  border-color: #2D6A4F;
+  box-shadow: 0 4px 12px 0 rgba(27, 67, 50, 0.10);
+}
+
+/* ─── KPI card accent strip ───────────────────────────────────────── */
+.kpi-card-red {
+  border-top: 3px solid #E8231A !important;
+}
+.kpi-card-green {
+  border-top: 3px solid #1B4332 !important;
+}
+
+/* ─── Sidebar active item pill ────────────────────────────────────── */
+.nav-active {
+  background-color: #E8231A;
+  color: #FFFFFF;
+}
+.nav-active svg {
+  color: #FFFFFF;
+}
+
+/* ─── Filter preset pill ─────────────────────────────────────────── */
+.filter-active {
+  background-color: #1B4332;
+  color: #F5F0DC;
+}
+
+/* ─── Smooth fade on page entrance ───────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.animate-fade-in {
+  animation: fadeUp 0.25s ease-out both;
 }
