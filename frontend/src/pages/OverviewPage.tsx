@@ -33,6 +33,7 @@ import {
 } from '../types';
 import { KPICard } from '../components/KPICard';
 import { AIInsightsCard } from '../components/AIInsightsCard';
+import { ChartTooltip } from '../components/ChartTooltip';
 import { formatCurrency, formatCompactCurrency, formatNumber } from '../utils/formatters';
 
 interface OverviewPageProps {
@@ -93,42 +94,21 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     );
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div
-          className="bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-xl text-xs space-y-1.5"
-          style={{ border: '1px solid #C8C2AA' }}
-        >
-          <p className="font-bold pb-1" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>
-            {label}
-          </p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between space-x-4">
-              <span className="flex items-center space-x-1.5 font-medium" style={{ color: '#5C5648' }}>
-                <span
-                  className="h-2 w-2 rounded-full inline-block"
-                  style={{ backgroundColor: entry.color || '#1B4332' }}
-                />
-                <span>{entry.name}:</span>
-              </span>
-              <span className="font-bold font-mono" style={{ color: '#1B4332' }}>
-                {entry.dataKey === 'revenue' ? formatCurrency(entry.value) : formatNumber(entry.value)}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div
       className={`space-y-6 animate-fade-in transition-opacity duration-200 ${
         isLoading ? 'opacity-65 pointer-events-none' : 'opacity-100'
       }`}
     >
+      {/* Graceful Empty Filter State */}
+      {summary && summary.total_orders === 0 && (
+        <div className="bi-card p-8 text-center space-y-1.5" style={{ borderLeft: '4px solid #E8231A' }}>
+          <h4 className="text-sm font-bold" style={{ color: '#1B4332' }}>No Orders Match Selected Filters</h4>
+          <p className="text-xs" style={{ color: '#7A7260' }}>
+            Try adjusting your date range, store, category, or payment method filters to view store analytics.
+          </p>
+        </div>
+      )}
       {/* 6 Core Summary Cards with Animated Numbers & Staggered Entrance */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -241,7 +221,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" vertical={false} />
                 <XAxis dataKey="period" stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatCompactCurrency} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
                 <Line
                   type="monotone"
                   dataKey="revenue"
@@ -286,7 +266,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" vertical={false} />
                 <XAxis dataKey="period" stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatNumber} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="orders"
@@ -320,7 +300,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" horizontal={false} />
                 <XAxis type="number" stroke="#9C9480" tick={{ fontSize: 11 }} tickFormatter={formatCompactCurrency} />
                 <YAxis dataKey="category" type="category" stroke="#5C5648" tick={{ fontSize: 11 }} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="revenue" name="Sales" fill="#1B4332" radius={[0, 6, 6, 0]} animationDuration={600} />
               </BarChart>
             </ResponsiveContainer>
@@ -341,7 +321,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" horizontal={false} />
                 <XAxis type="number" stroke="#9C9480" tick={{ fontSize: 11 }} tickFormatter={formatNumber} />
                 <YAxis dataKey="product" type="category" stroke="#5C5648" tick={{ fontSize: 10 }} tickLine={false} width={80} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="quantity_sold" name="Units Sold" radius={[0, 6, 6, 0]} animationDuration={600}>
                   {topProducts.slice(0, 6).map((_, index) => (
                     <Cell key={index} fill={COLORS[index % COLORS.length]} />
@@ -381,7 +361,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     <Cell key={index} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -428,7 +408,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     <Cell key={index} fill={COLORS[(index + 3) % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>

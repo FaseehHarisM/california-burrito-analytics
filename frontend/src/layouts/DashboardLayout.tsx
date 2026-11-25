@@ -33,6 +33,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
 }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -43,18 +44,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: '#FAF8F0' }}>
+      {/* Mobile Sidebar Backdrop */}
+      {isMobileSidebarOpen && (
+        <div
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/45 backdrop-blur-xs md:hidden animate-backdrop"
+        />
+      )}
+
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={onTabChange}
+        onTabChange={(tab) => {
+          onTabChange(tab);
+          setIsMobileSidebarOpen(false);
+        }}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 flex flex-col min-h-screen min-w-0 ${
-          isSidebarCollapsed ? 'ml-16' : 'ml-64'
+        className={`flex-1 flex flex-col min-h-screen min-w-0 ml-0 ${
+          isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'
         }`}
         style={{ transition: 'margin-left 0.36s cubic-bezier(0.22, 1, 0.36, 1)' }}
       >
@@ -63,6 +77,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           activeTab={activeTab}
           onRefresh={onRefresh}
           onExport={onExport}
+          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
           isLoading={isLoading}
           isBackendHealthy={isBackendHealthy}
         />

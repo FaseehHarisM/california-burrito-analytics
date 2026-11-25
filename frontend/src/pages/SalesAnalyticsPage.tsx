@@ -13,7 +13,8 @@ import {
 import { Clock, Calendar, Store, CreditCard, ShoppingBag } from 'lucide-react';
 import { FilterState } from '../types';
 import { api } from '../services/api';
-import { formatCurrency, formatCompactCurrency, formatNumber } from '../utils/formatters';
+import { ChartTooltip } from '../components/ChartTooltip';
+import { formatCompactCurrency } from '../utils/formatters';
 
 interface SalesAnalyticsPageProps {
   filters: FilterState;
@@ -25,18 +26,18 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
   const [salesView, setSalesView] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   useEffect(() => {
-    let isMounted = true;
+    const ctrl = new AbortController();
     setLoading(true);
-    api.getSalesAnalytics(filters)
-      .then((res) => {
-        if (isMounted) setData(res);
+    api.getSalesAnalytics(filters, ctrl.signal)
+      .then((res) => setData(res))
+      .catch((err) => {
+        if (err?.name !== 'AbortError') console.error('Failed to load sales analytics:', err);
       })
-      .catch((err) => console.error('Failed to load sales analytics:', err))
       .finally(() => {
-        if (isMounted) setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       });
 
-    return () => { isMounted = false; };
+    return () => ctrl.abort();
   }, [filters]);
 
   if (loading && !data) {
@@ -61,31 +62,6 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
     : salesView === 'weekly'
     ? data?.weekly_sales
     : data?.daily_sales;
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div
-          className="bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-xl text-xs space-y-1.5"
-          style={{ border: '1px solid #C8C2AA' }}
-        >
-          <p className="font-bold pb-1" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between space-x-4">
-              <span className="flex items-center space-x-1.5 font-medium" style={{ color: '#5C5648' }}>
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color || '#1B4332' }} />
-                <span>{entry.name}:</span>
-              </span>
-              <span className="font-bold font-mono" style={{ color: '#1B4332' }}>
-                {entry.dataKey === 'revenue' ? formatCurrency(entry.value) : formatNumber(entry.value)}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div
@@ -132,7 +108,7 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" vertical={false} />
               <XAxis dataKey="period" stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} />
               <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatCompactCurrency} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<ChartTooltip />} />
               <Line
                 type="monotone"
                 dataKey="revenue"
@@ -164,7 +140,7 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" vertical={false} />
                 <XAxis dataKey="day" stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatCompactCurrency} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="revenue" name="Sales" fill="#1B4332" radius={[6, 6, 0, 0]} animationDuration={600} />
               </BarChart>
             </ResponsiveContainer>
@@ -185,7 +161,7 @@ export const SalesAnalyticsPage: React.FC<SalesAnalyticsPageProps> = ({ filters 
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" vertical={false} />
                 <XAxis dataKey="hour" stroke="#9C9480" tick={{ fontSize: 10 }} tickLine={false} />
                 <YAxis stroke="#9C9480" tick={{ fontSize: 11 }} tickLine={false} tickFormatter={formatCompactCurrency} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="revenue" name="Hourly Sales" fill="#E8231A" radius={[6, 6, 0, 0]} animationDuration={600} />
               </BarChart>
             </ResponsiveContainer>

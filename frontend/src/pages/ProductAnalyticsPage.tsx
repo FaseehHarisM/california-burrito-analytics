@@ -12,23 +12,29 @@ export const ProductAnalyticsPage: React.FC<ProductAnalyticsPageProps> = ({ filt
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortField, setSortField] = useState<keyof ProductPerformanceItem>('total_revenue');
   const [sortAsc, setSortAsc] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
+    const timer = setTimeout(() => setDebouncedSearch(search), 220);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
     setLoading(true);
-    api.getProductAnalytics(filters, search)
-      .then((res) => {
-        if (isMounted) setData(res);
+    api.getProductAnalytics(filters, debouncedSearch, ctrl.signal)
+      .then((res) => setData(res))
+      .catch((err) => {
+        if (err?.name !== 'AbortError') console.error('Failed to load product analytics:', err);
       })
-      .catch((err) => console.error('Failed to load product analytics:', err))
       .finally(() => {
-        if (isMounted) setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       });
 
-    return () => { isMounted = false; };
-  }, [filters, search]);
+    return () => ctrl.abort();
+  }, [filters, debouncedSearch]);
 
   const handleSort = (field: keyof ProductPerformanceItem) => {
     if (sortField === field) {

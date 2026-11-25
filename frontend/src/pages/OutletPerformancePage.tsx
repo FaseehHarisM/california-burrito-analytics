@@ -14,6 +14,7 @@ import {
 import { Store } from 'lucide-react';
 import { FilterState, OutletPerformanceItem } from '../types';
 import { api } from '../services/api';
+import { ChartTooltip } from '../components/ChartTooltip';
 import { formatCurrency, formatCompactCurrency, formatNumber } from '../utils/formatters';
 
 interface OutletPerformancePageProps {
@@ -28,47 +29,29 @@ export const OutletPerformancePage: React.FC<OutletPerformancePageProps> = ({ fi
   const [selectedOutlet, setSelectedOutlet] = useState<string>('Koramangala');
 
   useEffect(() => {
-    let isMounted = true;
+    const ctrl = new AbortController();
     setLoading(true);
-    api.getOutletAnalytics(filters, selectedOutlet)
+    api.getOutletAnalytics(filters, selectedOutlet, ctrl.signal)
       .then((res) => {
-        if (isMounted) setData(res);
+        setData(res);
+        // Sync selected pill if filter excluded previous outlet selection
+        const resolved = res?.selected_outlet_drilldown?.outlet_name;
+        if (resolved && resolved !== selectedOutlet) {
+          setSelectedOutlet(resolved);
+        }
       })
-      .catch((err) => console.error('Failed to load outlet analytics:', err))
+      .catch((err) => {
+        if (err?.name !== 'AbortError') console.error('Failed to load outlet analytics:', err);
+      })
       .finally(() => {
-        if (isMounted) setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       });
 
-    return () => { isMounted = false; };
+    return () => ctrl.abort();
   }, [filters, selectedOutlet]);
 
   const drilldown = data?.selected_outlet_drilldown;
   const outletsList: OutletPerformanceItem[] = data?.outlets_comparison || [];
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div
-          className="bg-white/95 backdrop-blur-md p-3 rounded-xl shadow-xl text-xs space-y-1.5"
-          style={{ border: '1px solid #C8C2AA' }}
-        >
-          <p className="font-bold pb-1" style={{ color: '#1B4332', borderBottom: '1px solid #E5E0D0' }}>{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between space-x-4">
-              <span className="flex items-center space-x-1.5 font-medium" style={{ color: '#5C5648' }}>
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color || '#1B4332' }} />
-                <span>{entry.name}:</span>
-              </span>
-              <span className="font-bold font-mono" style={{ color: '#1B4332' }}>
-                {entry.dataKey === 'revenue' ? formatCurrency(entry.value) : formatNumber(entry.value)}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
 
   if (loading && !data) {
     return (
@@ -116,7 +99,7 @@ export const OutletPerformancePage: React.FC<OutletPerformancePageProps> = ({ fi
       </div>
 
       {/* Selected Store Drilldown Charts */}
-      {drilldown && (
+      {drilldown ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in" key={drilldown.outlet_name}>
           <div className="bi-card bi-card-hover p-5 space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#1B4332' }}>
@@ -128,7 +111,7 @@ export const OutletPerformancePage: React.FC<OutletPerformancePageProps> = ({ fi
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" horizontal={false} />
                   <XAxis type="number" stroke="#9C9480" tick={{ fontSize: 10 }} tickFormatter={formatCompactCurrency} />
                   <YAxis dataKey="category" type="category" stroke="#5C5648" tick={{ fontSize: 10 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="revenue" name="Sales" fill="#E8231A" radius={[0, 6, 6, 0]} animationDuration={550} />
                 </BarChart>
               </ResponsiveContainer>
@@ -157,7 +140,7 @@ export const OutletPerformancePage: React.FC<OutletPerformancePageProps> = ({ fi
                       <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<ChartTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -184,12 +167,16 @@ export const OutletPerformancePage: React.FC<OutletPerformancePageProps> = ({ fi
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E0D0" vertical={false} />
                   <XAxis dataKey="hour" stroke="#9C9480" tick={{ fontSize: 9 }} tickLine={false} />
                   <YAxis stroke="#9C9480" tick={{ fontSize: 10 }} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="orders" name="Orders" fill="#1B4332" radius={[4, 4, 0, 0]} animationDuration={550} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="bi-card p-8 text-center text-xs" style={{ color: '#7A7260' }}>
+          No store data matches the selected filter criteria.
         </div>
       )}
 

@@ -21,32 +21,40 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
   const [data, setData] = useState<PaginatedOrdersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [sortBy, setSortBy] = useState('order_datetime');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
 
-  const fetchOrders = async (targetPage = 1, searchQuery = search) => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchOrders = async (targetPage = 1, searchQuery = debouncedSearch, signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const res = await api.getOrders(filters, targetPage, limit, searchQuery, sortBy, sortOrder);
+      const res = await api.getOrders(filters, targetPage, limit, searchQuery, sortBy, sortOrder, signal);
       setData(res);
       setPage(res.page);
-    } catch (err) {
-      console.error('Failed to load orders:', err);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') console.error('Failed to load orders:', err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders(1, search);
-  }, [filters, sortBy, sortOrder]);
+    const ctrl = new AbortController();
+    fetchOrders(1, debouncedSearch, ctrl.signal);
+    return () => ctrl.abort();
+  }, [filters, debouncedSearch, sortBy, sortOrder]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchOrders(1, search);
+    setDebouncedSearch(search);
   };
 
   const handleSortToggle = (col: string) => {
@@ -100,7 +108,7 @@ export const OrdersTransactionsPage: React.FC<OrdersTransactionsPageProps> = ({ 
                   type="button"
                   onClick={() => {
                     setSearch('');
-                    fetchOrders(1, '');
+                    setDebouncedSearch('');
                   }}
                   className="absolute right-2.5 top-2 p-0.5 rounded-full hover:bg-black/5 cursor-pointer"
                   style={{ color: '#7A7260' }}

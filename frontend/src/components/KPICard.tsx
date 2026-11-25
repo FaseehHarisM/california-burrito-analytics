@@ -85,10 +85,10 @@ export const KPICard: React.FC<KPICardProps> = ({
       </div>
 
       <div
-        className="mt-3 pt-2.5 flex items-center justify-between gap-1.5 text-xs"
+        className="mt-3 pt-2.5 flex flex-wrap items-center justify-between gap-1.5 text-xs"
         style={{ borderTop: '1px solid #EDE8D8' }}
       >
-        <span className="text-[11px] leading-tight font-medium" style={{ color: '#7A7260' }}>
+        <span className="text-[11px] leading-tight font-medium min-w-0" style={{ color: '#7A7260' }}>
           {subtext}
         </span>
         {badge && (

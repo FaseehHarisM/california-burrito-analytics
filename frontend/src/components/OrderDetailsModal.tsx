@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ShoppingBag, Store, Calendar, CreditCard, Copy, Check } from 'lucide-react';
 import { OrderDetail } from '../types';
 import { formatCurrency } from '../utils/formatters';
@@ -10,6 +11,14 @@ interface OrderDetailsModalProps {
 
 export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCopied(false);
+    return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    };
+  }, [order?.bill_no]);
 
   useEffect(() => {
     if (!order) return;
@@ -22,20 +31,38 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onC
 
   if (!order) return null;
 
-  const handleCopyBill = () => {
-    navigator.clipboard?.writeText(String(order.bill_no));
+  const handleCopyBill = async () => {
+    const billText = String(order.bill_no);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(billText);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = billText;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+    } catch {
+      // Clipboard write may be restricted in sandboxed contexts; state still confirms feedback cleanly.
+    }
     setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => setCopied(false), 1800);
   };
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-backdrop"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-in"
+        className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scale-in"
         style={{ border: '1px solid #C8C2AA' }}
       >
         {/* Header */}
@@ -71,7 +98,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onC
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 text-xs">
+        <div className="p-5 space-y-4 text-xs overflow-y-auto flex-1">
           {/* Metadata Grid */}
           <div
             className="grid grid-cols-2 gap-2.5 p-3.5 rounded-xl"
@@ -133,7 +160,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onC
 
         {/* Footer */}
         <div
-          className="px-5 py-3 flex justify-end"
+          className="px-5 py-3 flex justify-end shrink-0"
           style={{ backgroundColor: '#FAF8F0', borderTop: '1px solid #E5E0D0' }}
         >
           <button
@@ -145,6 +172,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onC
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

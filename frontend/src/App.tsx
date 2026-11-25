@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ActiveTab } from './components/Sidebar';
 import { OverviewPage } from './pages/OverviewPage';
@@ -6,16 +6,15 @@ import { SalesAnalyticsPage } from './pages/SalesAnalyticsPage';
 import { ProductAnalyticsPage } from './pages/ProductAnalyticsPage';
 import { OutletPerformancePage } from './pages/OutletPerformancePage';
 import { OrdersTransactionsPage } from './pages/OrdersTransactionsPage';
-import { 
-  FilterState, 
-  FilterOptions, 
-  KPISummary, 
-  RevenueTrendItem, 
-  OrdersTrendItem, 
-  CategoryPerformanceItem, 
-  DistributionItem, 
-  ProductPerformanceItem, 
-  OutletPerformanceItem 
+import {
+  FilterState,
+  FilterOptions,
+  KPISummary,
+  RevenueTrendItem,
+  CategoryPerformanceItem,
+  DistributionItem,
+  ProductPerformanceItem,
+  OutletPerformanceItem,
 } from './types';
 import { api } from './services/api';
 
@@ -27,7 +26,6 @@ export function App() {
   // Overview Data States
   const [summary, setSummary] = useState<KPISummary | null>(null);
   const [revenueTrend, setRevenueTrend] = useState<RevenueTrendItem[]>([]);
-  const [ordersTrend, setOrdersTrend] = useState<OrdersTrendItem[]>([]);
   const [categories, setCategories] = useState<CategoryPerformanceItem[]>([]);
   const [orderTypes, setOrderTypes] = useState<DistributionItem[]>([]);
   const [settlements, setSettlements] = useState<DistributionItem[]>([]);
@@ -37,14 +35,27 @@ export function App() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isBackendHealthy, setIsBackendHealthy] = useState(true);
+  const filtersRef = useRef<FilterState>(filters);
+  const aggRef = useRef<'daily' | 'weekly' | 'monthly'>(trendAggregation);
+  filtersRef.current = filters;
+  aggRef.current = trendAggregation;
+
+  // Derive ordersTrend from revenueTrend directly (avoids a duplicate API round-trip)
+  const ordersTrend = useMemo(
+    () => revenueTrend.map((t) => ({ period: t.period, orders: t.orders, revenue: t.revenue })),
+    [revenueTrend]
+  );
 
   // Load Filter Options & Health check on mount
   useEffect(() => {
-    api.getHealth()
+    const ctrl = new AbortController();
+    api.getHealth(ctrl.signal)
       .then(() => setIsBackendHealthy(true))
-      .catch(() => setIsBackendHealthy(false));
+      .catch((err) => {
+        if (err.name !== 'AbortError') setIsBackendHealthy(false);
+      });
 
-    api.getFilters()
+    api.getFilters(ctrl.signal)
       .then((opts) => {
         setFilterOptions(opts);
         setFilters({
@@ -52,46 +63,64 @@ export function App() {
           endDate: opts.date_range[1],
         });
       })
-      .catch((err) => console.error('Failed to initialize filters:', err));
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error('Failed to initialize filters:', err);
+      });
+
+    return () => ctrl.abort();
   }, []);
 
-  // Fetch Overview Data when filters or trendAggregation change
-  const loadOverviewData = useCallback(async (currentFilters: FilterState, agg: 'daily' | 'weekly' | 'monthly') => {
+  // Fetch Overview Data when filters change
+  const loadOverviewData = useCallback(async (currentFilters: FilterState, agg: 'daily' | 'weekly' | 'monthly', signal?: AbortSignal) => {
     setIsLoading(true);
     try {
-      const [sum, revTrend, ordTrend, cats, types, settles, prods, outls] = await Promise.all([
-        api.getDashboardSummary(currentFilters),
-        api.getRevenueTrend(currentFilters, agg),
-        api.getOrdersTrend(currentFilters, agg),
-        api.getCategoryPerformance(currentFilters),
-        api.getOrderTypeDistribution(currentFilters),
-        api.getPaymentDistribution(currentFilters),
-        api.getTopProducts(currentFilters, 10, 'quantity'),
-        api.getOutletPerformance(currentFilters),
+      const [sum, revTrend, cats, types, settles, prods, outls] = await Promise.all([
+        api.getDashboardSummary(currentFilters, signal),
+        api.getRevenueTrend(currentFilters, agg, signal),
+        api.getCategoryPerformance(currentFilters, signal),
+        api.getOrderTypeDistribution(currentFilters, signal),
+        api.getPaymentDistribution(currentFilters, signal),
+        api.getTopProducts(currentFilters, 10, 'quantity', signal),
+        api.getOutletPerformance(currentFilters, signal),
       ]);
 
       setSummary(sum);
       setRevenueTrend(revTrend);
-      setOrdersTrend(ordTrend);
       setCategories(cats);
       setOrderTypes(types);
       setSettlements(settles);
       setTopProducts(prods);
       setOutlets(outls);
       setIsBackendHealthy(true);
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err);
-      setIsBackendHealthy(false);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Failed to load dashboard data:', err);
+        setIsBackendHealthy(false);
+      }
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
+  // Reload all overview widgets when filters change
   useEffect(() => {
-    if (filters.startDate) {
-      loadOverviewData(filters, trendAggregation);
+    if (!filters.startDate) return;
+    const ctrl = new AbortController();
+    loadOverviewData(filters, aggRef.current, ctrl.signal);
+    return () => ctrl.abort();
+  }, [filters, loadOverviewData]);
+
+  // Reload ONLY trend endpoint when user switches Daily / Weekly / Monthly granularity
+  const handleAggregationChange = useCallback(async (agg: 'daily' | 'weekly' | 'monthly') => {
+    setTrendAggregation(agg);
+    if (!filtersRef.current.startDate) return;
+    try {
+      const revTrend = await api.getRevenueTrend(filtersRef.current, agg);
+      setRevenueTrend(revTrend);
+    } catch (err) {
+      console.error('Failed to update trend granularity:', err);
     }
-  }, [filters, trendAggregation, loadOverviewData]);
+  }, []);
 
   const handleApplyFilters = (updated: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...updated }));
@@ -116,7 +145,13 @@ export function App() {
 
   const handleExport = () => {
     const url = api.getExportUrl(filters);
-    window.open(url, '_blank');
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', '');
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -143,7 +178,7 @@ export function App() {
           topProducts={topProducts}
           outlets={outlets}
           trendAggregation={trendAggregation}
-          onAggregationChange={setTrendAggregation}
+          onAggregationChange={handleAggregationChange}
           isLoading={isLoading}
         />
       )}

@@ -1,5 +1,6 @@
 import threading
 from collections import OrderedDict
+from contextlib import closing
 from typing import Dict, Any, List, Optional, Callable
 from app.database.connection import get_db_conn
 from app.schemas.analytics import FilterParams
@@ -14,11 +15,10 @@ def _get_date_bounds() -> tuple[str, str]:
     global _DATE_BOUNDS_CACHE
     if _DATE_BOUNDS_CACHE is not None:
         return _DATE_BOUNDS_CACHE
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT MIN(order_date), MAX(order_date) FROM bills;")
-    d_min, d_max = cur.fetchone()
-    conn.close()
+    with closing(get_db_conn()) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT MIN(order_date), MAX(order_date) FROM bills;")
+        d_min, d_max = cur.fetchone()
     _DATE_BOUNDS_CACHE = (d_min or "2025-06-17", d_max or "2026-06-16")
     return _DATE_BOUNDS_CACHE
 
@@ -115,104 +115,103 @@ class AnalyticsService:
         key = ("summary", _filter_key(filters))
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
 
-            if not filters.category:
-                where_b, params_b = build_filter_clauses(filters, allow_category=False)
-                cur.execute(f"""
-                SELECT
-                    ROUND(COALESCE(SUM(total_revenue), 0), 2) as total_revenue,
-                    COUNT(*) as total_orders,
-                    COALESCE(SUM(total_quantity), 0) as total_items_sold,
-                    COUNT(DISTINCT outlet_name) as total_outlets
-                FROM bills
-                WHERE {where_b};
-                """, params_b)
-                row = cur.fetchone()
+                if not filters.category:
+                    where_b, params_b = build_filter_clauses(filters, allow_category=False)
+                    cur.execute(f"""
+                    SELECT
+                        ROUND(COALESCE(SUM(total_revenue), 0), 2) as total_revenue,
+                        COUNT(*) as total_orders,
+                        COALESCE(SUM(total_quantity), 0) as total_items_sold,
+                        COUNT(DISTINCT outlet_name) as total_outlets
+                    FROM bills
+                    WHERE {where_b};
+                    """, params_b)
+                    row = cur.fetchone()
 
+                    cur.execute(f"""
+                    SELECT outlet_name, ROUND(SUM(total_revenue), 2) as rev
+                    FROM bills
+                    WHERE {where_b}
+                    GROUP BY outlet_name
+                    ORDER BY rev DESC
+                    LIMIT 1;
+                    """, params_b)
+                    top_outlet_row = cur.fetchone()
+                else:
+                    where_o, params_o = build_filter_clauses(filters)
+                    cur.execute(f"""
+                    SELECT
+                        ROUND(COALESCE(SUM(revenue), 0), 2) as total_revenue,
+                        COUNT(DISTINCT bill_no) as total_orders,
+                        COALESCE(SUM(quantity), 0) as total_items_sold,
+                        COUNT(DISTINCT outlet_name) as total_outlets
+                    FROM orders
+                    WHERE {where_o};
+                    """, params_o)
+                    row = cur.fetchone()
+
+                    cur.execute(f"""
+                    SELECT outlet_name, ROUND(SUM(revenue), 2) as rev
+                    FROM orders
+                    WHERE {where_o}
+                    GROUP BY outlet_name
+                    ORDER BY rev DESC
+                    LIMIT 1;
+                    """, params_o)
+                    top_outlet_row = cur.fetchone()
+
+                total_rev = float(row["total_revenue"] or 0)
+                total_orders = int(row["total_orders"] or 0)
+                total_items = int(row["total_items_sold"] or 0)
+                total_outlets = int(row["total_outlets"] or 0)
+
+                aov = round(total_rev / total_orders, 2) if total_orders > 0 else 0.0
+                avg_items = round(total_items / total_orders, 2) if total_orders > 0 else 0.0
+
+                top_outlet = {
+                    "name": top_outlet_row["outlet_name"] if top_outlet_row else "N/A",
+                    "revenue": float(top_outlet_row["rev"] if top_outlet_row else 0),
+                    "share_pct": round((float(top_outlet_row["rev"]) / total_rev * 100), 2) if top_outlet_row and total_rev > 0 else 0.0
+                }
+
+                where_sql, params = build_filter_clauses(filters)
+
+                # Top Category
                 cur.execute(f"""
-                SELECT outlet_name, ROUND(SUM(total_revenue), 2) as rev
-                FROM bills
-                WHERE {where_b}
-                GROUP BY outlet_name
+                SELECT category, ROUND(SUM(revenue), 2) as rev
+                FROM orders
+                WHERE {where_sql}
+                GROUP BY category
                 ORDER BY rev DESC
                 LIMIT 1;
-                """, params_b)
-                top_outlet_row = cur.fetchone()
-            else:
-                where_o, params_o = build_filter_clauses(filters)
-                cur.execute(f"""
-                SELECT
-                    ROUND(COALESCE(SUM(revenue), 0), 2) as total_revenue,
-                    COUNT(DISTINCT bill_no) as total_orders,
-                    COALESCE(SUM(quantity), 0) as total_items_sold,
-                    COUNT(DISTINCT outlet_name) as total_outlets
-                FROM orders
-                WHERE {where_o};
-                """, params_o)
-                row = cur.fetchone()
+                """, params)
+                top_cat_row = cur.fetchone()
+                top_category = {
+                    "name": top_cat_row["category"] if top_cat_row else "N/A",
+                    "revenue": float(top_cat_row["rev"] if top_cat_row else 0),
+                    "share_pct": round((float(top_cat_row["rev"]) / total_rev * 100), 2) if top_cat_row and total_rev > 0 else 0.0
+                }
 
+                # Top Product
                 cur.execute(f"""
-                SELECT outlet_name, ROUND(SUM(revenue), 2) as rev
+                SELECT item, category, ROUND(SUM(revenue), 2) as rev, SUM(quantity) as qty
                 FROM orders
-                WHERE {where_o}
-                GROUP BY outlet_name
+                WHERE {where_sql}
+                GROUP BY item, category
                 ORDER BY rev DESC
                 LIMIT 1;
-                """, params_o)
-                top_outlet_row = cur.fetchone()
+                """, params)
+                top_prod_row = cur.fetchone()
+                top_product = {
+                    "name": top_prod_row["item"] if top_prod_row else "N/A",
+                    "category": top_prod_row["category"] if top_prod_row else "N/A",
+                    "revenue": float(top_prod_row["rev"] if top_prod_row else 0),
+                    "quantity": int(top_prod_row["qty"] if top_prod_row else 0)
+                }
 
-            total_rev = float(row["total_revenue"] or 0)
-            total_orders = int(row["total_orders"] or 0)
-            total_items = int(row["total_items_sold"] or 0)
-            total_outlets = int(row["total_outlets"] or 0)
-
-            aov = round(total_rev / total_orders, 2) if total_orders > 0 else 0.0
-            avg_items = round(total_items / total_orders, 2) if total_orders > 0 else 0.0
-
-            top_outlet = {
-                "name": top_outlet_row["outlet_name"] if top_outlet_row else "N/A",
-                "revenue": float(top_outlet_row["rev"] if top_outlet_row else 0),
-                "share_pct": round((float(top_outlet_row["rev"]) / total_rev * 100), 2) if top_outlet_row and total_rev > 0 else 0.0
-            }
-
-            where_sql, params = build_filter_clauses(filters)
-
-            # Top Category
-            cur.execute(f"""
-            SELECT category, ROUND(SUM(revenue), 2) as rev
-            FROM orders
-            WHERE {where_sql}
-            GROUP BY category
-            ORDER BY rev DESC
-            LIMIT 1;
-            """, params)
-            top_cat_row = cur.fetchone()
-            top_category = {
-                "name": top_cat_row["category"] if top_cat_row else "N/A",
-                "revenue": float(top_cat_row["rev"] if top_cat_row else 0),
-                "share_pct": round((float(top_cat_row["rev"]) / total_rev * 100), 2) if top_cat_row and total_rev > 0 else 0.0
-            }
-
-            # Top Product
-            cur.execute(f"""
-            SELECT item, category, ROUND(SUM(revenue), 2) as rev, SUM(quantity) as qty
-            FROM orders
-            WHERE {where_sql}
-            GROUP BY item, category
-            ORDER BY rev DESC
-            LIMIT 1;
-            """, params)
-            top_prod_row = cur.fetchone()
-            top_product = {
-                "name": top_prod_row["item"] if top_prod_row else "N/A",
-                "category": top_prod_row["category"] if top_prod_row else "N/A",
-                "revenue": float(top_prod_row["rev"] if top_prod_row else 0),
-                "quantity": int(top_prod_row["qty"] if top_prod_row else 0)
-            }
-
-            conn.close()
             return {
                 "total_revenue": total_rev,
                 "total_orders": total_orders,
@@ -232,9 +231,6 @@ class AnalyticsService:
         key = ("rev_trend", _filter_key(filters), aggregation)
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
-
             if aggregation == "monthly":
                 group_expr = "strftime('%Y-%m', order_date)"
             elif aggregation == "weekly":
@@ -271,9 +267,10 @@ class AnalyticsService:
                 ORDER BY period ASC;
                 """
 
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             return [
                 {
@@ -298,11 +295,7 @@ class AnalyticsService:
         key = ("cat_perf", _filter_key(filters))
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
-
             where_sql, params = build_filter_clauses(filters)
-
             query = f"""
             SELECT
                 category,
@@ -314,9 +307,10 @@ class AnalyticsService:
             GROUP BY category
             ORDER BY revenue DESC;
             """
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             total_rev = sum(float(r["revenue"] or 0) for r in rows) or 1.0
 
@@ -338,9 +332,6 @@ class AnalyticsService:
         key = ("order_type_dist", _filter_key(filters))
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
-
             if not filters.category:
                 where_sql, params = build_filter_clauses(filters, allow_category=False)
                 query = f"""
@@ -366,9 +357,10 @@ class AnalyticsService:
                 ORDER BY revenue DESC;
                 """
 
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             total_rev = sum(float(r["revenue"] or 0) for r in rows) or 1.0
             return [
@@ -388,9 +380,6 @@ class AnalyticsService:
         key = ("payment_dist", _filter_key(filters))
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
-
             if not filters.category:
                 where_sql, params = build_filter_clauses(filters, allow_category=False)
                 query = f"""
@@ -416,9 +405,10 @@ class AnalyticsService:
                 ORDER BY revenue DESC;
                 """
 
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             total_rev = sum(float(r["revenue"] or 0) for r in rows) or 1.0
             return [
@@ -438,9 +428,6 @@ class AnalyticsService:
         key = ("top_products", _filter_key(filters), limit, order_by)
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
-
             where_sql, params = build_filter_clauses(filters)
             sort_col = "SUM(quantity)" if order_by == "quantity" else "SUM(revenue)"
 
@@ -451,15 +438,16 @@ class AnalyticsService:
                 category,
                 SUM(quantity) as quantity_sold,
                 ROUND(SUM(revenue), 2) as total_revenue,
-                ROUND(SUM(revenue) / SUM(quantity), 2) as avg_selling_price
+                ROUND(SUM(revenue) / NULLIF(SUM(quantity), 0), 2) as avg_selling_price
             FROM orders
             WHERE {where_sql}
             GROUP BY item, category
             ORDER BY {sort_col} DESC;
             """
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             total_rev = sum(float(r["total_revenue"] or 0) for r in rows) or 1.0
 
@@ -484,9 +472,6 @@ class AnalyticsService:
         key = ("outlet_perf", _filter_key(filters))
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
-
             if not filters.category:
                 where_sql, params = build_filter_clauses(filters, allow_category=False)
                 query = f"""
@@ -516,9 +501,10 @@ class AnalyticsService:
                 ORDER BY revenue DESC;
                 """
 
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             total_rev = sum(float(r["revenue"] or 0) for r in rows) or 1.0
             return [
@@ -540,55 +526,53 @@ class AnalyticsService:
         key = ("sales_analytics", _filter_key(filters))
 
         def _compute():
-            conn = get_db_conn()
-            cur = conn.cursor()
+            with closing(get_db_conn()) as conn:
+                cur = conn.cursor()
 
-            if not filters.category:
-                where_sql, params = build_filter_clauses(filters, allow_category=False)
-                cur.execute(f"""
-                SELECT day_of_week, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
-                FROM bills
-                WHERE {where_sql}
-                GROUP BY day_of_week
-                ORDER BY CASE day_of_week
-                    WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 WHEN 'Wednesday' THEN 3
-                    WHEN 'Thursday' THEN 4 WHEN 'Friday' THEN 5 WHEN 'Saturday' THEN 6 WHEN 'Sunday' THEN 7
-                END;
-                """, params)
-                dow_sales = [{"day": r["day_of_week"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+                if not filters.category:
+                    where_sql, params = build_filter_clauses(filters, allow_category=False)
+                    cur.execute(f"""
+                    SELECT day_of_week, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
+                    FROM bills
+                    WHERE {where_sql}
+                    GROUP BY day_of_week
+                    ORDER BY CASE day_of_week
+                        WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 WHEN 'Wednesday' THEN 3
+                        WHEN 'Thursday' THEN 4 WHEN 'Friday' THEN 5 WHEN 'Saturday' THEN 6 WHEN 'Sunday' THEN 7
+                    END;
+                    """, params)
+                    dow_sales = [{"day": r["day_of_week"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
 
-                cur.execute(f"""
-                SELECT order_hour, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
-                FROM bills
-                WHERE {where_sql}
-                GROUP BY order_hour
-                ORDER BY order_hour ASC;
-                """, params)
-                hourly_sales = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
-            else:
-                where_sql, params = build_filter_clauses(filters)
-                cur.execute(f"""
-                SELECT day_of_week, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
-                FROM orders
-                WHERE {where_sql}
-                GROUP BY day_of_week
-                ORDER BY CASE day_of_week
-                    WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 WHEN 'Wednesday' THEN 3
-                    WHEN 'Thursday' THEN 4 WHEN 'Friday' THEN 5 WHEN 'Saturday' THEN 6 WHEN 'Sunday' THEN 7
-                END;
-                """, params)
-                dow_sales = [{"day": r["day_of_week"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+                    cur.execute(f"""
+                    SELECT order_hour, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
+                    FROM bills
+                    WHERE {where_sql}
+                    GROUP BY order_hour
+                    ORDER BY order_hour ASC;
+                    """, params)
+                    hourly_sales = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+                else:
+                    where_sql, params = build_filter_clauses(filters)
+                    cur.execute(f"""
+                    SELECT day_of_week, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
+                    FROM orders
+                    WHERE {where_sql}
+                    GROUP BY day_of_week
+                    ORDER BY CASE day_of_week
+                        WHEN 'Monday' THEN 1 WHEN 'Tuesday' THEN 2 WHEN 'Wednesday' THEN 3
+                        WHEN 'Thursday' THEN 4 WHEN 'Friday' THEN 5 WHEN 'Saturday' THEN 6 WHEN 'Sunday' THEN 7
+                    END;
+                    """, params)
+                    dow_sales = [{"day": r["day_of_week"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
 
-                cur.execute(f"""
-                SELECT order_hour, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
-                FROM orders
-                WHERE {where_sql}
-                GROUP BY order_hour
-                ORDER BY order_hour ASC;
-                """, params)
-                hourly_sales = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
-
-            conn.close()
+                    cur.execute(f"""
+                    SELECT order_hour, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
+                    FROM orders
+                    WHERE {where_sql}
+                    GROUP BY order_hour
+                    ORDER BY order_hour ASC;
+                    """, params)
+                    hourly_sales = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
 
             daily_trend = AnalyticsService.get_revenue_trend(filters, "daily")
             weekly_trend = AnalyticsService.get_revenue_trend(filters, "weekly")
@@ -627,15 +611,15 @@ class AnalyticsService:
                 category,
                 SUM(quantity) as quantity_sold,
                 ROUND(SUM(revenue), 2) as total_revenue,
-                ROUND(SUM(revenue) / SUM(quantity), 2) as avg_selling_price
+                ROUND(SUM(revenue) / NULLIF(SUM(quantity), 0), 2) as avg_selling_price
             FROM orders
             WHERE {where_sql}
             GROUP BY item, category
             ORDER BY total_revenue DESC;
             """
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            conn.close()
+            with closing(conn):
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             total_rev = sum(float(r["total_revenue"] or 0) for r in rows) or 1.0
 
@@ -676,65 +660,69 @@ class AnalyticsService:
     @staticmethod
     def get_outlet_analytics(filters: FilterParams, selected_outlet: Optional[str] = None) -> Dict[str, Any]:
         outlets_summary = AnalyticsService.get_outlet_performance(filters)
-        target_outlet = selected_outlet or (outlets_summary[0]["outlet_name"] if outlets_summary else None)
+        valid_outlets = {o["outlet_name"] for o in outlets_summary}
+        target_outlet = (
+            selected_outlet
+            if selected_outlet and selected_outlet in valid_outlets
+            else (outlets_summary[0]["outlet_name"] if outlets_summary else None)
+        )
 
         key = ("outlet_analytics", _filter_key(filters), target_outlet)
 
         def _compute():
             drilldown = None
             if target_outlet:
-                conn = get_db_conn()
-                cur = conn.cursor()
+                with closing(get_db_conn()) as conn:
+                    cur = conn.cursor()
 
-                where_o, params_o = build_filter_clauses(filters)
-                cur.execute(f"""
-                SELECT category, ROUND(SUM(revenue), 2) as revenue, SUM(quantity) as quantity
-                FROM orders
-                WHERE {where_o} AND outlet_name = ?
-                GROUP BY category
-                ORDER BY revenue DESC;
-                """, params_o + [target_outlet])
-                cat_mix = [{"category": r["category"], "revenue": float(r["revenue"] or 0), "quantity": int(r["quantity"] or 0)} for r in cur.fetchall()]
-
-                if not filters.category:
-                    where_b, params_b = build_filter_clauses(filters, allow_category=False)
+                    where_o, params_o = build_filter_clauses(filters)
                     cur.execute(f"""
-                    SELECT order_type, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
-                    FROM bills
-                    WHERE {where_b} AND outlet_name = ?
-                    GROUP BY order_type
-                    ORDER BY revenue DESC;
-                    """, params_b + [target_outlet])
-                    type_mix = [{"order_type": r["order_type"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
-
-                    cur.execute(f"""
-                    SELECT order_hour, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
-                    FROM bills
-                    WHERE {where_b} AND outlet_name = ?
-                    GROUP BY order_hour
-                    ORDER BY order_hour ASC;
-                    """, params_b + [target_outlet])
-                    hourly = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
-                else:
-                    cur.execute(f"""
-                    SELECT order_type, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
+                    SELECT category, ROUND(SUM(revenue), 2) as revenue, SUM(quantity) as quantity
                     FROM orders
                     WHERE {where_o} AND outlet_name = ?
-                    GROUP BY order_type
+                    GROUP BY category
                     ORDER BY revenue DESC;
                     """, params_o + [target_outlet])
-                    type_mix = [{"order_type": r["order_type"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+                    cat_mix = [{"category": r["category"], "revenue": float(r["revenue"] or 0), "quantity": int(r["quantity"] or 0)} for r in cur.fetchall()]
 
-                    cur.execute(f"""
-                    SELECT order_hour, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
-                    FROM orders
-                    WHERE {where_o} AND outlet_name = ?
-                    GROUP BY order_hour
-                    ORDER BY order_hour ASC;
-                    """, params_o + [target_outlet])
-                    hourly = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+                    if not filters.category:
+                        where_b, params_b = build_filter_clauses(filters, allow_category=False)
+                        cur.execute(f"""
+                        SELECT order_type, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
+                        FROM bills
+                        WHERE {where_b} AND outlet_name = ?
+                        GROUP BY order_type
+                        ORDER BY revenue DESC;
+                        """, params_b + [target_outlet])
+                        type_mix = [{"order_type": r["order_type"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
 
-                conn.close()
+                        cur.execute(f"""
+                        SELECT order_hour, ROUND(SUM(total_revenue), 2) as revenue, COUNT(*) as orders
+                        FROM bills
+                        WHERE {where_b} AND outlet_name = ?
+                        GROUP BY order_hour
+                        ORDER BY order_hour ASC;
+                        """, params_b + [target_outlet])
+                        hourly = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+                    else:
+                        cur.execute(f"""
+                        SELECT order_type, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
+                        FROM orders
+                        WHERE {where_o} AND outlet_name = ?
+                        GROUP BY order_type
+                        ORDER BY revenue DESC;
+                        """, params_o + [target_outlet])
+                        type_mix = [{"order_type": r["order_type"], "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+
+                        cur.execute(f"""
+                        SELECT order_hour, ROUND(SUM(revenue), 2) as revenue, COUNT(DISTINCT bill_no) as orders
+                        FROM orders
+                        WHERE {where_o} AND outlet_name = ?
+                        GROUP BY order_hour
+                        ORDER BY order_hour ASC;
+                        """, params_o + [target_outlet])
+                        hourly = [{"hour": f"{int(r['order_hour']):02d}:00", "revenue": float(r["revenue"] or 0), "orders": int(r["orders"] or 0)} for r in cur.fetchall()]
+
                 drilldown = {
                     "outlet_name": target_outlet,
                     "category_mix": cat_mix,
@@ -758,9 +746,6 @@ class AnalyticsService:
         sort_by: str = "order_datetime",
         sort_order: str = "DESC"
     ) -> Dict[str, Any]:
-        conn = get_db_conn()
-        cur = conn.cursor()
-
         valid_sort_cols = {
             "bill_no": "bill_no",
             "order_datetime": "order_datetime",
@@ -772,76 +757,77 @@ class AnalyticsService:
         direction = "ASC" if sort_order.upper() == "ASC" else "DESC"
         offset = (page - 1) * limit
 
-        if not filters.category:
-            where_sql, params = build_filter_clauses(filters, allow_category=False)
-            conditions = [where_sql] if where_sql != "1=1" else []
+        with closing(get_db_conn()) as conn:
+            cur = conn.cursor()
+            if not filters.category:
+                where_sql, params = build_filter_clauses(filters, allow_category=False)
+                conditions = [where_sql] if where_sql != "1=1" else []
 
-            if search and search.strip():
-                q_str = search.strip()
-                if q_str.isdigit():
-                    conditions.append("bill_no = ?")
-                    params.append(int(q_str))
-                else:
-                    conditions.append("(outlet_name LIKE ? OR bill_no IN (SELECT bill_no FROM orders WHERE item LIKE ?))")
-                    params.extend([f"%{q_str}%", f"%{q_str}%"])
+                if search and search.strip():
+                    q_str = search.strip()
+                    if q_str.isdigit():
+                        conditions.append("bill_no = ?")
+                        params.append(int(q_str))
+                    else:
+                        conditions.append("(outlet_name LIKE ? OR bill_no IN (SELECT bill_no FROM orders WHERE item LIKE ?))")
+                        params.extend([f"%{q_str}%", f"%{q_str}%"])
 
-            final_where = " AND ".join(conditions) if conditions else "1=1"
+                final_where = " AND ".join(conditions) if conditions else "1=1"
 
-            cur.execute(f"SELECT COUNT(*) FROM bills WHERE {final_where};", params)
-            total_orders = cur.fetchone()[0]
-            total_pages = max(1, (total_orders + limit - 1) // limit)
+                cur.execute(f"SELECT COUNT(*) FROM bills WHERE {final_where};", params)
+                total_orders = cur.fetchone()[0]
+                total_pages = max(1, (total_orders + limit - 1) // limit)
 
-            query = f"""
-            SELECT
-                bill_no, order_datetime, order_date, outlet_name, brand,
-                order_type, settlement, line_items_count, total_quantity, total_revenue
-            FROM bills
-            WHERE {final_where}
-            ORDER BY {order_col} {direction}
-            LIMIT ? OFFSET ?;
-            """
-            cur.execute(query, params + [limit, offset])
-        else:
-            where_sql, params = build_filter_clauses(filters, allow_category=True)
-            conditions = [where_sql] if where_sql != "1=1" else []
+                query = f"""
+                SELECT
+                    bill_no, order_datetime, order_date, outlet_name, brand,
+                    order_type, settlement, line_items_count, total_quantity, total_revenue
+                FROM bills
+                WHERE {final_where}
+                ORDER BY {order_col} {direction}
+                LIMIT ? OFFSET ?;
+                """
+                cur.execute(query, params + [limit, offset])
+            else:
+                where_sql, params = build_filter_clauses(filters, allow_category=True)
+                conditions = [where_sql] if where_sql != "1=1" else []
 
-            if search and search.strip():
-                q_str = search.strip()
-                if q_str.isdigit():
-                    conditions.append("bill_no = ?")
-                    params.append(int(q_str))
-                else:
-                    conditions.append("(outlet_name LIKE ? OR item LIKE ?)")
-                    params.extend([f"%{q_str}%", f"%{q_str}%"])
+                if search and search.strip():
+                    q_str = search.strip()
+                    if q_str.isdigit():
+                        conditions.append("bill_no = ?")
+                        params.append(int(q_str))
+                    else:
+                        conditions.append("(outlet_name LIKE ? OR item LIKE ?)")
+                        params.extend([f"%{q_str}%", f"%{q_str}%"])
 
-            final_where = " AND ".join(conditions) if conditions else "1=1"
+                final_where = " AND ".join(conditions) if conditions else "1=1"
 
-            cur.execute(f"SELECT COUNT(DISTINCT bill_no) FROM orders WHERE {final_where};", params)
-            total_orders = cur.fetchone()[0]
-            total_pages = max(1, (total_orders + limit - 1) // limit)
+                cur.execute(f"SELECT COUNT(DISTINCT bill_no) FROM orders WHERE {final_where};", params)
+                total_orders = cur.fetchone()[0]
+                total_pages = max(1, (total_orders + limit - 1) // limit)
 
-            query = f"""
-            SELECT
-                bill_no,
-                MIN(order_datetime) as order_datetime,
-                order_date,
-                outlet_name,
-                brand,
-                order_type,
-                settlement,
-                COUNT(*) as line_items_count,
-                SUM(quantity) as total_quantity,
-                ROUND(SUM(revenue), 2) as total_revenue
-            FROM orders
-            WHERE {final_where}
-            GROUP BY bill_no
-            ORDER BY {order_col} {direction}
-            LIMIT ? OFFSET ?;
-            """
-            cur.execute(query, params + [limit, offset])
+                query = f"""
+                SELECT
+                    bill_no,
+                    MIN(order_datetime) as order_datetime,
+                    order_date,
+                    outlet_name,
+                    brand,
+                    order_type,
+                    settlement,
+                    COUNT(*) as line_items_count,
+                    SUM(quantity) as total_quantity,
+                    ROUND(SUM(revenue), 2) as total_revenue
+                FROM orders
+                WHERE {final_where}
+                GROUP BY bill_no
+                ORDER BY {order_col} {direction}
+                LIMIT ? OFFSET ?;
+                """
+                cur.execute(query, params + [limit, offset])
 
-        rows = cur.fetchall()
-        conn.close()
+            rows = cur.fetchall()
 
         orders = [
             {
@@ -869,30 +855,28 @@ class AnalyticsService:
 
     @staticmethod
     def get_order_details(bill_no: int) -> Optional[Dict[str, Any]]:
-        conn = get_db_conn()
-        cur = conn.cursor()
+        with closing(get_db_conn()) as conn:
+            cur = conn.cursor()
 
-        cur.execute("""
-        SELECT
-            bill_no, order_datetime, order_date, outlet_name, brand,
-            order_type, settlement, line_items_count, total_quantity, total_revenue
-        FROM bills
-        WHERE bill_no = ?;
-        """, (bill_no,))
-        bill_row = cur.fetchone()
+            cur.execute("""
+            SELECT
+                bill_no, order_datetime, order_date, outlet_name, brand,
+                order_type, settlement, line_items_count, total_quantity, total_revenue
+            FROM bills
+            WHERE bill_no = ?;
+            """, (bill_no,))
+            bill_row = cur.fetchone()
 
-        if not bill_row:
-            conn.close()
-            return None
+            if not bill_row:
+                return None
 
-        cur.execute("""
-        SELECT item, category, price, quantity, revenue
-        FROM orders
-        WHERE bill_no = ?
-        ORDER BY revenue DESC;
-        """, (bill_no,))
-        item_rows = cur.fetchall()
-        conn.close()
+            cur.execute("""
+            SELECT item, category, price, quantity, revenue
+            FROM orders
+            WHERE bill_no = ?
+            ORDER BY revenue DESC;
+            """, (bill_no,))
+            item_rows = cur.fetchall()
 
         items = [
             {
@@ -925,25 +909,23 @@ class AnalyticsService:
 
     @staticmethod
     def _compute_filters() -> Dict[str, Any]:
-        conn = get_db_conn()
-        cur = conn.cursor()
+        with closing(get_db_conn()) as conn:
+            cur = conn.cursor()
 
-        cur.execute("SELECT DISTINCT outlet_name FROM bills ORDER BY outlet_name;")
-        outlets = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT outlet_name FROM bills ORDER BY outlet_name;")
+            outlets = [r[0] for r in cur.fetchall()]
 
-        cur.execute("SELECT DISTINCT category FROM orders ORDER BY category;")
-        categories = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT category FROM orders ORDER BY category;")
+            categories = [r[0] for r in cur.fetchall()]
 
-        cur.execute("SELECT DISTINCT order_type FROM bills ORDER BY order_type;")
-        order_types = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT order_type FROM bills ORDER BY order_type;")
+            order_types = [r[0] for r in cur.fetchall()]
 
-        cur.execute("SELECT DISTINCT settlement FROM bills ORDER BY settlement;")
-        settlements = [r[0] for r in cur.fetchall()]
+            cur.execute("SELECT DISTINCT settlement FROM bills ORDER BY settlement;")
+            settlements = [r[0] for r in cur.fetchall()]
 
-        cur.execute("SELECT MIN(order_date), MAX(order_date) FROM bills;")
-        date_min, date_max = cur.fetchone()
-
-        conn.close()
+            cur.execute("SELECT MIN(order_date), MAX(order_date) FROM bills;")
+            date_min, date_max = cur.fetchone()
 
         return {
             "outlets": outlets,

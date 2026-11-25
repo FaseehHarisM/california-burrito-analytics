@@ -1,6 +1,6 @@
-import { FilterState, KPISummary, RevenueTrendItem, OrdersTrendItem, CategoryPerformanceItem, DistributionItem, ProductPerformanceItem, OutletPerformanceItem, PaginatedOrdersResponse, OrderDetail, FilterOptions, HealthResponse } from '../types';
+import { FilterState, KPISummary, RevenueTrendItem, CategoryPerformanceItem, DistributionItem, ProductPerformanceItem, OutletPerformanceItem, PaginatedOrdersResponse, OrderDetail, FilterOptions, HealthResponse } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 function buildQuery(filters?: FilterState, extra?: Record<string, any>): string {
   const params = new URLSearchParams();
@@ -23,102 +23,88 @@ function buildQuery(filters?: FilterState, extra?: Record<string, any>): string 
   return qs ? `?${qs}` : '';
 }
 
+async function fetchJson<T>(url: string, errorLabel: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(errorLabel);
+  return res.json();
+}
+
 export const api = {
-  async getHealth(): Promise<HealthResponse> {
-    const res = await fetch(`${API_BASE}/api/health`);
-    if (!res.ok) throw new Error('Health check failed');
-    return res.json();
+  getHealth(signal?: AbortSignal): Promise<HealthResponse> {
+    return fetchJson(`${API_BASE}/api/health`, 'Health check failed', signal);
   },
 
-  async getFilters(): Promise<FilterOptions> {
-    const res = await fetch(`${API_BASE}/api/filters`);
-    if (!res.ok) throw new Error('Failed to load filter options');
-    return res.json();
+  getFilters(signal?: AbortSignal): Promise<FilterOptions> {
+    return fetchJson(`${API_BASE}/api/filters`, 'Failed to load filter options', signal);
   },
 
-  async getDashboardSummary(filters?: FilterState): Promise<KPISummary> {
-    const res = await fetch(`${API_BASE}/api/dashboard/summary${buildQuery(filters)}`);
-    if (!res.ok) throw new Error('Failed to load dashboard summary');
-    return res.json();
+  getDashboardSummary(filters?: FilterState, signal?: AbortSignal): Promise<KPISummary> {
+    return fetchJson(`${API_BASE}/api/dashboard/summary${buildQuery(filters)}`, 'Failed to load dashboard summary', signal);
   },
 
-  async getRevenueTrend(filters?: FilterState, aggregation: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<RevenueTrendItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/revenue-trend${buildQuery(filters, { aggregation })}`);
-    if (!res.ok) throw new Error('Failed to load revenue trend');
-    return res.json();
+  getRevenueTrend(
+    filters?: FilterState,
+    aggregation: 'daily' | 'weekly' | 'monthly' = 'daily',
+    signal?: AbortSignal
+  ): Promise<RevenueTrendItem[]> {
+    return fetchJson(`${API_BASE}/api/dashboard/revenue-trend${buildQuery(filters, { aggregation })}`, 'Failed to load revenue trend', signal);
   },
 
-  async getOrdersTrend(filters?: FilterState, aggregation: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<OrdersTrendItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/orders-trend${buildQuery(filters, { aggregation })}`);
-    if (!res.ok) throw new Error('Failed to load orders trend');
-    return res.json();
+  getCategoryPerformance(filters?: FilterState, signal?: AbortSignal): Promise<CategoryPerformanceItem[]> {
+    return fetchJson(`${API_BASE}/api/dashboard/category-performance${buildQuery(filters)}`, 'Failed to load category performance', signal);
   },
 
-  async getCategoryPerformance(filters?: FilterState): Promise<CategoryPerformanceItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/category-performance${buildQuery(filters)}`);
-    if (!res.ok) throw new Error('Failed to load category performance');
-    return res.json();
+  getOrderTypeDistribution(filters?: FilterState, signal?: AbortSignal): Promise<DistributionItem[]> {
+    return fetchJson(`${API_BASE}/api/dashboard/order-type-distribution${buildQuery(filters)}`, 'Failed to load order type distribution', signal);
   },
 
-  async getOrderTypeDistribution(filters?: FilterState): Promise<DistributionItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/order-type-distribution${buildQuery(filters)}`);
-    if (!res.ok) throw new Error('Failed to load order type distribution');
-    return res.json();
+  getPaymentDistribution(filters?: FilterState, signal?: AbortSignal): Promise<DistributionItem[]> {
+    return fetchJson(`${API_BASE}/api/dashboard/payment-distribution${buildQuery(filters)}`, 'Failed to load payment distribution', signal);
   },
 
-  async getPaymentDistribution(filters?: FilterState): Promise<DistributionItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/payment-distribution${buildQuery(filters)}`);
-    if (!res.ok) throw new Error('Failed to load payment distribution');
-    return res.json();
+  getTopProducts(
+    filters?: FilterState,
+    limit = 10,
+    orderBy: 'quantity' | 'revenue' = 'quantity',
+    signal?: AbortSignal
+  ): Promise<ProductPerformanceItem[]> {
+    return fetchJson(`${API_BASE}/api/dashboard/top-products${buildQuery(filters, { limit, order_by: orderBy })}`, 'Failed to load top products', signal);
   },
 
-  async getTopProducts(filters?: FilterState, limit = 10, orderBy: 'quantity' | 'revenue' = 'quantity'): Promise<ProductPerformanceItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/top-products${buildQuery(filters, { limit, order_by: orderBy })}`);
-    if (!res.ok) throw new Error('Failed to load top products');
-    return res.json();
+  getOutletPerformance(filters?: FilterState, signal?: AbortSignal): Promise<OutletPerformanceItem[]> {
+    return fetchJson(`${API_BASE}/api/dashboard/outlet-performance${buildQuery(filters)}`, 'Failed to load outlet performance', signal);
   },
 
-  async getOutletPerformance(filters?: FilterState): Promise<OutletPerformanceItem[]> {
-    const res = await fetch(`${API_BASE}/api/dashboard/outlet-performance${buildQuery(filters)}`);
-    if (!res.ok) throw new Error('Failed to load outlet performance');
-    return res.json();
+  getSalesAnalytics(filters?: FilterState, signal?: AbortSignal): Promise<any> {
+    return fetchJson(`${API_BASE}/api/analytics/sales${buildQuery(filters)}`, 'Failed to load sales analytics', signal);
   },
 
-  async getSalesAnalytics(filters?: FilterState): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/analytics/sales${buildQuery(filters)}`);
-    if (!res.ok) throw new Error('Failed to load sales analytics');
-    return res.json();
+  getProductAnalytics(filters?: FilterState, search?: string, signal?: AbortSignal): Promise<any> {
+    return fetchJson(`${API_BASE}/api/analytics/products${buildQuery(filters, { search })}`, 'Failed to load product analytics', signal);
   },
 
-  async getProductAnalytics(filters?: FilterState, search?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/analytics/products${buildQuery(filters, { search })}`);
-    if (!res.ok) throw new Error('Failed to load product analytics');
-    return res.json();
+  getOutletAnalytics(filters?: FilterState, selectedOutlet?: string, signal?: AbortSignal): Promise<any> {
+    return fetchJson(`${API_BASE}/api/analytics/outlets${buildQuery(filters, { selected_outlet: selectedOutlet })}`, 'Failed to load outlet analytics', signal);
   },
 
-  async getOutletAnalytics(filters?: FilterState, selectedOutlet?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/analytics/outlets${buildQuery(filters, { selected_outlet: selectedOutlet })}`);
-    if (!res.ok) throw new Error('Failed to load outlet analytics');
-    return res.json();
-  },
-
-  async getOrders(
+  getOrders(
     filters?: FilterState,
     page = 1,
     limit = 20,
     search?: string,
     sortBy = 'order_datetime',
-    sortOrder = 'DESC'
+    sortOrder = 'DESC',
+    signal?: AbortSignal
   ): Promise<PaginatedOrdersResponse> {
-    const res = await fetch(`${API_BASE}/api/orders${buildQuery(filters, { page, limit, search, sort_by: sortBy, sort_order: sortOrder })}`);
-    if (!res.ok) throw new Error('Failed to load orders');
-    return res.json();
+    return fetchJson(
+      `${API_BASE}/api/orders${buildQuery(filters, { page, limit, search, sort_by: sortBy, sort_order: sortOrder })}`,
+      'Failed to load orders',
+      signal
+    );
   },
 
-  async getOrderDetails(billNo: number): Promise<OrderDetail> {
-    const res = await fetch(`${API_BASE}/api/orders/${billNo}`);
-    if (!res.ok) throw new Error(`Failed to load order #${billNo}`);
-    return res.json();
+  getOrderDetails(billNo: number, signal?: AbortSignal): Promise<OrderDetail> {
+    return fetchJson(`${API_BASE}/api/orders/${billNo}`, `Failed to load order #${billNo}`, signal);
   },
 
   getExportUrl(filters?: FilterState, search?: string): string {

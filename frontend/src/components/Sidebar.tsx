@@ -7,6 +7,7 @@ import {
   ReceiptText,
   ChevronLeft,
   CalendarRange,
+  X,
 } from 'lucide-react';
 
 export type ActiveTab = 'overview' | 'sales' | 'products' | 'outlets' | 'orders';
@@ -16,6 +17,8 @@ interface SidebarProps {
   onTabChange: (tab: ActiveTab) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const NAV_ITEMS: { id: ActiveTab; label: string; icon: React.ComponentType<any> }[] = [
@@ -35,18 +38,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   isCollapsed,
   onToggleCollapse,
+  isMobileOpen = false,
+  onCloseMobile,
 }) => {
   const activeIndex = Math.max(0, NAV_ITEMS.findIndex((item) => item.id === activeTab));
 
   return (
     <aside
       className={`fixed top-0 left-0 z-40 h-screen flex flex-col justify-between select-none ${
-        isCollapsed ? 'w-16' : 'w-64'
-      }`}
+        isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      } ${isCollapsed ? 'w-64 md:w-16' : 'w-64'}`}
       style={{
         backgroundColor: '#1B4332',
         borderRight: '1px solid #2D6A4F',
-        transition: 'width 0.36s cubic-bezier(0.22, 1, 0.36, 1)',
+        transition:
+          'width 0.36s cubic-bezier(0.22, 1, 0.36, 1), transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       {/* ── Official Brand Logo Header ─────────────────────────────── */}
@@ -89,10 +95,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
+          {onCloseMobile && (
+            <button
+              onClick={onCloseMobile}
+              className="md:hidden p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
+              style={{ color: 'rgba(245,240,220,0.80)' }}
+              aria-label="Close navigation menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
           {!isCollapsed && (
             <button
               onClick={onToggleCollapse}
-              className="p-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer shrink-0"
+              className="hidden md:block p-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer shrink-0"
               style={{ color: 'rgba(245,240,220,0.65)' }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(245,240,220,0.12)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}

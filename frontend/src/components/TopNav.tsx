@@ -1,11 +1,12 @@
 import React from 'react';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, Menu } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
 interface TopNavProps {
   activeTab: ActiveTab;
   onRefresh: () => void;
   onExport: () => void;
+  onOpenMobileMenu?: () => void;
   isLoading: boolean;
   isBackendHealthy: boolean;
 }
@@ -37,6 +38,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   activeTab,
   onRefresh,
   onExport,
+  onOpenMobileMenu,
   isLoading,
   isBackendHealthy,
 }) => {
@@ -44,27 +46,43 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   return (
     <header
-      className="h-16 px-6 flex items-center justify-between sticky top-0 z-30 relative overflow-hidden"
+      className="h-16 px-3 sm:px-6 flex items-center justify-between gap-2 sticky top-0 z-30 relative overflow-hidden"
       style={{
         backgroundColor: '#E8231A',
         borderBottom: '2px solid #C41D14',
         boxShadow: '0 2px 10px rgba(232, 35, 26, 0.22)',
       }}
     >
-      {/* Title & Breadcrumb */}
-      <div className="min-w-0 animate-fade-in" key={activeTab}>
-        <div className="flex items-center space-x-2">
-          <span className="text-xs font-medium" style={{ color: 'rgba(245,240,220,0.75)' }}>
-            Dashboard
-          </span>
-          <span style={{ color: 'rgba(245,240,220,0.45)' }}>/</span>
-          <h2 className="text-sm font-bold tracking-tight truncate" style={{ color: '#F5F0DC' }}>
-            {current.title}
-          </h2>
+      {/* Mobile Menu Trigger + Title & Breadcrumb */}
+      <div className="flex items-center space-x-2.5 min-w-0">
+        {onOpenMobileMenu && (
+          <button
+            onClick={onOpenMobileMenu}
+            className="md:hidden p-1.5 rounded-xl transition-colors cursor-pointer shrink-0"
+            style={{
+              backgroundColor: 'rgba(245,240,220,0.16)',
+              border: '1px solid rgba(245,240,220,0.32)',
+              color: '#F5F0DC',
+            }}
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
+        <div className="min-w-0 animate-fade-in" key={activeTab}>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-medium hidden sm:inline" style={{ color: 'rgba(245,240,220,0.75)' }}>
+              Dashboard
+            </span>
+            <span className="hidden sm:inline" style={{ color: 'rgba(245,240,220,0.45)' }}>/</span>
+            <h2 className="text-sm font-bold tracking-tight truncate" style={{ color: '#F5F0DC' }}>
+              {current.title}
+            </h2>
+          </div>
+          <p className="text-xs hidden sm:block truncate" style={{ color: 'rgba(245,240,220,0.80)' }}>
+            {current.subtitle}
+          </p>
         </div>
-        <p className="text-xs hidden sm:block truncate" style={{ color: 'rgba(245,240,220,0.80)' }}>
-          {current.subtitle}
-        </p>
       </div>
 
       {/* Right Controls */}
